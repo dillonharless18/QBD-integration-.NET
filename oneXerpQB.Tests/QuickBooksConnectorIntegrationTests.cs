@@ -31,7 +31,7 @@ namespace oneXerpQB.Tests
             bool result = quickBooksConnector.CreatePurchaseOrder(purchaseOrderData);
 
             // Assert
-            Assert.True(result, "Failed to create Purchase Order in QuickBooks.");
+            Assert.True(result);
         }
     }
 }
