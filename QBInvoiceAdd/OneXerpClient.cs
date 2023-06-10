@@ -27,10 +27,10 @@ namespace oneXerpQB
                 VendorName = "Vendor 1",
                 OrderDate = DateTime.Now,
                 Items = new List<PurchaseOrderItem>
-        {
-            new PurchaseOrderItem { ItemName = "Item 1", Quantity = 10, Rate = 100.0 },
-            new PurchaseOrderItem { ItemName = "Item 2", Quantity = 5, Rate = 50.0 }
-        }
+                    {
+                        new PurchaseOrderItem { ItemName = "Item 1", Quantity = 10, Rate = 100.0 },
+                        new PurchaseOrderItem { ItemName = "Item 2", Quantity = 5, Rate = 50.0 }
+                    }
             });
         }
 

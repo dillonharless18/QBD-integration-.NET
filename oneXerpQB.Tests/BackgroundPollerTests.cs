@@ -48,8 +48,8 @@ namespace oneXerpQB.Tests
 
             var message = new Message
             {
-                Body = "{ \"itemId\": \"xxxx-yyyy-zzzz-1111-2222-3333\", \"actionType\": \"CREATE_VENDOR\"}"
-        };
+                Body = "{ \"itemId\": \"xxxx-yyyy-zzzz-1111-2222-3333\", \"actionType\": \"CREATE_PO\"}"
+            };
             var purchaseOrderData = JsonConvert.DeserializeObject<PurchaseOrderData>(message.Body);
 
             // Act
@@ -57,6 +57,28 @@ namespace oneXerpQB.Tests
 
             // Assert
             mockQuickBooksClient.Verify(connector => connector.CreatePurchaseOrder(It.Is<PurchaseOrderData>(data => ArePurchaseOrderDataEqual(data, purchaseOrderData))), Times.Once);
+        }
+
+        [Fact]
+        public async void ProcessMessage_ValidMessage_CallsCreaeVendor()
+        {
+            // Arrange
+            var mockSqsClient = new Mock<AmazonSQSClient>("access-key", "secret-key", Amazon.RegionEndpoint.USEast1);
+            var mockOneXErpClient = new Mock<OneXerpClient>();
+            var mockQuickBooksClient = new Mock<IQuickBooksClient>();
+            var backgroundPoller = new BackgroundPoller(mockSqsClient.Object, mockOneXErpClient.Object, "sqs-url", mockQuickBooksClient.Object);
+
+            var message = new Message
+            {
+                Body = "{ \"itemId\": \"xxxx-yyyy-zzzz-1111-2222-3333\", \"actionType\": \"CREATE_VENDOR\"}"
+            };
+            var vendorData = JsonConvert.DeserializeObject<VendorData>(message.Body);
+
+            // Act
+            await backgroundPoller.ProcessMessage(message);
+
+            // Assert
+            mockQuickBooksClient.Verify(connector => connector.CreateVendor(It.Is<VendorData>(data => AreVendorDataEqual(data, vendorData))), Times.Once);
         }
 
         private bool ArePurchaseOrderDataEqual(PurchaseOrderData data1, PurchaseOrderData data2)
@@ -72,6 +94,16 @@ namespace oneXerpQB.Tests
                 {
                     return false;
                 }
+            }
+
+            return true;
+        }
+
+        private bool AreVendorDataEqual(VendorData data1, VendorData data2)
+        {
+            if (data1.Name != data2.Name || data1.CompanyName != data2.CompanyName || data1.VendorAddress.ToString() != data2.VendorAddress.ToString())
+            {
+                return false;
             }
 
             return true;
