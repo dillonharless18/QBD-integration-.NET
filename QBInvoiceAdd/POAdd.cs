@@ -6,6 +6,8 @@ using Amazon.SQS.Model;
 using QBFC16Lib;
 using Newtonsoft.Json;
 using System.Threading.Tasks;
+using System.IO;
+using Microsoft.Extensions.Configuration;
 
 namespace oneXerpQB
 {
@@ -13,12 +15,22 @@ namespace oneXerpQB
     {
         static void Main(string[] args)
         {
-            // Set up AWS credentials and SQS client - TODO ensure we're using the instance profile instead of creds
-            var sqsClient = new AmazonSQSClient("your-access-key", "your-secret-key", Amazon.RegionEndpoint.USEast1);
+            
+            // Build configuration
+            var configuration = new ConfigurationBuilder()
+                .SetBasePath(Directory.GetCurrentDirectory())
+                .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+                .Build();
+
+            // Create an Amazon SQS client using default AWS credentials and a specific AWS region - finds instance role automatically
+            var sqsClient = new AmazonSQSClient(Amazon.RegionEndpoint.USEast1);
             var sqsUrl = "https://sqs.us-east-1.amazonaws.com/your-account-id/your-queue-name"; // TODO make this dynamic
 
+            // Read QuickBooks company file path from configuration
+            var qbCompanyFilePath = configuration["QuickBooks:CompanyFilePath"];
+
             // Start background worker for polling SQS queue
-            var quickBooksConnector = new QuickBooksConnector();
+            var quickBooksConnector = new QuickBooksConnector(qbCompanyFilePath);
             var poller = new BackgroundPoller(sqsClient, sqsUrl, quickBooksConnector, 20000);
             try
             {
@@ -71,23 +83,45 @@ namespace oneXerpQB
 
         internal async Task ProcessMessage(Message message)
         {
-            PurchaseOrderData purchaseOrderData = ParseMessage(message.Body);
-            bool isSuccessful = _quickBooksConnector.CreatePurchaseOrder(purchaseOrderData);
-
-            if (isSuccessful)
+            try
             {
-                // Delete the message from the queue after it's processed
-                await _sqsClient.DeleteMessageAsync(new DeleteMessageRequest
+                PurchaseOrderData purchaseOrderData = ParseMessage(message.Body);
+                bool isSuccessful = _quickBooksConnector.CreatePurchaseOrder(purchaseOrderData);
+                
+                if (isSuccessful)
                 {
-                    QueueUrl = _sqsUrl,
-                    ReceiptHandle = message.ReceiptHandle
-                });
+                    // Delete the message from the queue after it's processed
+                    await _sqsClient.DeleteMessageAsync(new DeleteMessageRequest
+                    {
+                        QueueUrl = _sqsUrl,
+                        ReceiptHandle = message.ReceiptHandle
+                    });
+                }
+                else
+                {
+                    Console.WriteLine("Purchase order creation failed. The message will not be deleted from the queue.");
+                }
             }
-            else
+            catch (QuickBooksErrorException ex)
             {
-                Console.WriteLine("Purchase order creation failed. The message will not be deleted from the queue.");
+                // Handle QuickBooksErrorException here
+                Console.WriteLine("QuickBooks ERROR occurred while processing message: " + ex.Message);
             }
-            
+            catch (QuickBooksWarningException ex)
+            {
+                // Handle QuickBooksWarningException here
+                Console.WriteLine("QuickBooks WARNING occurred while processing message: " + ex.Message);
+            }
+            catch (System.IO.FileNotFoundException ex)
+            {
+                // Handle QuickBooksWarningException here
+                Console.WriteLine("FileNotFoundException thrown while processing message: " + ex.Message);
+            }
+            catch (Exception ex)
+            {
+                // Handle any other exceptions here
+                Console.WriteLine("Error occurred while processing message: " + ex.Message);
+            }
         }
 
         public void Start()
@@ -109,7 +143,8 @@ namespace oneXerpQB
                 ReceiveMessageResponse response = await _sqsClient.ReceiveMessageAsync(new ReceiveMessageRequest
                 {
                     QueueUrl = _sqsUrl,
-                    MaxNumberOfMessages = 1
+                    MaxNumberOfMessages = 1,
+                    VisibilityTimeout = 60
                 });
 
                 if (response.Messages.Count > 0)
@@ -122,7 +157,7 @@ namespace oneXerpQB
                     {
                         try
                         {
-                            ProcessMessage(response.Messages[0]);
+                            await ProcessMessage(response.Messages[0]);
                         }
                         finally
                         {

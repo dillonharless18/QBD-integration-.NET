@@ -15,23 +15,28 @@ namespace oneXerpQB
 
     public class QuickBooksConnector : IQuickBooksConnector
     {
+        private string _qbCompanyFilePath;
+
+        public QuickBooksConnector(string qbCompanyFilePath)
+        {
+            _qbCompanyFilePath = qbCompanyFilePath;
+        }
+
         public bool CreatePurchaseOrder(PurchaseOrderData poData) // TODO update this to return a more robust message other than a bool
         {
-            string qbCompanyFilePath = @"C:\Users\Administrator\Documents\sample_advanced inventory business.qbw";
+            bool result = false;
+            QBSessionManager sessionManager = new QBSessionManager();
 
             try
             {
-                // Create a QBSessionManager and connect to QuickBooks
-                QBSessionManager sessionManager = new QBSessionManager();
 
-                // Use company file env if set, otherwise default to sample file
-                if (!String.IsNullOrEmpty(Environment.GetEnvironmentVariable("COMPANY_FILE_PATH")))
+                if (!System.IO.File.Exists(_qbCompanyFilePath))
                 {
-                    qbCompanyFilePath = Environment.GetEnvironmentVariable("COMPANY_FILE_PATH");
+                    throw new System.IO.FileNotFoundException($"QuickBooks company file not found at path: {_qbCompanyFilePath}");
                 }
 
                 sessionManager.OpenConnection("", "oneXerpQB");
-                sessionManager.BeginSession(qbCompanyFilePath, ENOpenMode.omDontCare);
+                sessionManager.BeginSession(_qbCompanyFilePath, ENOpenMode.omDontCare);
 
                 // Create a new PurchaseOrder using QBFC
                 IMsgSetRequest requestMsgSet = sessionManager.CreateMsgSetRequest("US", 16, 0);
@@ -68,29 +73,18 @@ namespace oneXerpQB
                 else
                 {
                     Console.WriteLine("Purchase Order added successfully.");
-
-                    // End the session and close the connection
-                    sessionManager.EndSession();
-                    sessionManager.CloseConnection();
                     Console.WriteLine(responseMsgSet.ResponseList.GetAt(0).ToString());
-                    return true;
+                    result = true;
                 }
             }
-            catch (QuickBooksErrorException e)
+            finally
             {
-                Console.WriteLine(e.Message.ToString());
-                return false;
+                // End the session and close the connection
+                sessionManager.EndSession();
+                sessionManager.CloseConnection();
             }
-            catch (QuickBooksWarningException e)
-            {
-                Console.WriteLine(e.Message.ToString());
-                return true;
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine(e.Message.ToString());
-                return false;
-            }
+
+            return result;
         }
     }
 }

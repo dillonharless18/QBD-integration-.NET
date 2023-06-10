@@ -1,6 +1,8 @@
 ﻿using Xunit;
 using oneXerpQB;
 using System;
+using Microsoft.Extensions.Configuration;
+using System.IO;
 
 namespace oneXerpQB.Tests
 {
@@ -10,6 +12,13 @@ namespace oneXerpQB.Tests
         public void CreatePurchaseOrder_ValidData_CreatesPurchaseOrderInQuickBooks()
         {
             // Arrange
+            
+            var configuration = new Microsoft.Extensions.Configuration.ConfigurationBuilder()
+                .SetBasePath(Directory.GetCurrentDirectory())
+                .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+                .Build();
+            var qbCompanyFilePath = configuration["QuickBooks:CompanyFilePath"];
+
             var purchaseOrderData = new PurchaseOrderData
             {
                 VendorName = "401K Administrator",
@@ -25,7 +34,7 @@ namespace oneXerpQB.Tests
                 }
             };
 
-            var quickBooksConnector = new QuickBooksConnector();
+            var quickBooksConnector = new QuickBooksConnector(qbCompanyFilePath);
 
             // Act
             bool result = quickBooksConnector.CreatePurchaseOrder(purchaseOrderData);

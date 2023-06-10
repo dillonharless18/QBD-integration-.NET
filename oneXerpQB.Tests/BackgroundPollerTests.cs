@@ -6,6 +6,9 @@ using Amazon.SQS;
 using Moq;
 using Amazon.SQS.Model;
 using Newtonsoft.Json;
+using System.Configuration;
+using System.IO;
+using Microsoft.Extensions.Configuration;
 
 namespace oneXerpQB.Tests
 {
@@ -14,7 +17,9 @@ namespace oneXerpQB.Tests
         [Fact]
         public void ParseMessage_ValidJson_ReturnsPurchaseOrderData()
         {
+
             // Arrange
+
             var mockSqsClient = new Mock<AmazonSQSClient>("access-key", "secret-key", Amazon.RegionEndpoint.USEast1);
             var mockQuickBooksConnector = new Mock<IQuickBooksConnector>();
             var backgroundPoller = new BackgroundPoller(mockSqsClient.Object, "sqs-url", mockQuickBooksConnector.Object);
@@ -35,7 +40,7 @@ namespace oneXerpQB.Tests
         }
 
         [Fact]
-        public void ProcessMessage_ValidMessage_CallsCreatePurchaseOrder()
+        public async void ProcessMessage_ValidMessage_CallsCreatePurchaseOrder()
         {
             // Arrange
             var mockSqsClient = new Mock<AmazonSQSClient>("access-key", "secret-key", Amazon.RegionEndpoint.USEast1);
@@ -49,7 +54,7 @@ namespace oneXerpQB.Tests
             var purchaseOrderData = JsonConvert.DeserializeObject<PurchaseOrderData>(message.Body);
 
             // Act
-            backgroundPoller.ProcessMessage(message);
+            await backgroundPoller.ProcessMessage(message);
 
             // Assert
             mockQuickBooksConnector.Verify(connector => connector.CreatePurchaseOrder(It.Is<PurchaseOrderData>(data => ArePurchaseOrderDataEqual(data, purchaseOrderData))), Times.Once);
