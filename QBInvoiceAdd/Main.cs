@@ -23,16 +23,19 @@ namespace oneXerpQB
                 .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
                 .Build();
 
-            // Create an Amazon SQS client using default AWS credentials and a specific AWS region - finds instance role automatically
+            // Note - Finds the instance role automatically
             var sqsClient = new AmazonSQSClient(Amazon.RegionEndpoint.USEast1);
+            // TODO Here we should look up the queue URL from cloudformation output
             var sqsUrl = "https://sqs.us-east-1.amazonaws.com/your-account-id/your-queue-name"; // TODO make this dynamic
 
             // Read QuickBooks company file path from configuration
             var qbCompanyFilePath = configuration["QuickBooks:CompanyFilePath"];
+            var quickBooksClient = new QuickBooksClient(qbCompanyFilePath);
 
-            // Start background worker for polling SQS queue
-            var quickBooksConnector = new QuickBooksConnector(qbCompanyFilePath);
-            var poller = new BackgroundPoller(sqsClient, sqsUrl, quickBooksConnector, 20000);
+            var oneXerpClient = new OneXerpClient();
+
+
+            var poller = new BackgroundPoller(sqsClient, oneXerpClient, sqsUrl, quickBooksClient, 20000, 1);
             try
             {
                 poller.Start();
@@ -69,15 +72,15 @@ namespace oneXerpQB
         private Thread _pollingThread;
         private bool _running;
         private readonly int _pollingInterval;
-        private readonly IQuickBooksConnector _quickBooksConnector;
+        private readonly IQuickBooksClient _quickBooksClient;
         private SemaphoreSlim _semaphore;
         private readonly OneXerpClient _oneXerpClient;
 
-        public BackgroundPoller(AmazonSQSClient sqsClient, OneXerpClient oneXerpClient, string sqsUrl, IQuickBooksConnector quickBooksConnector, int pollingInterval = 20000, int maxConcurrency = 1)
+        public BackgroundPoller(AmazonSQSClient sqsClient, OneXerpClient oneXerpClient, string sqsUrl, IQuickBooksClient quickBooksConnector, int pollingInterval = 20000, int maxConcurrency = 1)
         {
             _sqsClient = sqsClient;
             _sqsUrl = sqsUrl;
-            _quickBooksConnector = quickBooksConnector;
+            _quickBooksClient = quickBooksConnector;
             _running = true;
             _pollingInterval = pollingInterval;
             _semaphore = new SemaphoreSlim(maxConcurrency, maxConcurrency);
@@ -93,7 +96,7 @@ namespace oneXerpQB
                 string itemId = parsedMessage.itemId;
                 string actionType = parsedMessage.actionType.ToUpperInvariant();
                 PurchaseOrderData purchaseOrderData;
-                Vendor vendor;
+                VendorData vendorData;
 
                 switch (actionType)
                 {
@@ -102,19 +105,19 @@ namespace oneXerpQB
                         // Perform actions for creating a purchase order
                         Console.WriteLine("Processing CREATE_PO action...");
                         purchaseOrderData = await _oneXerpClient.getPurchaseOrderData(itemId);
-                        isSuccessful = _quickBooksConnector.CreatePurchaseOrder(purchaseOrderData);
+                        isSuccessful = _quickBooksClient.CreatePurchaseOrder(purchaseOrderData);
                         break;
-                    case "UPDATE_PO":
+                    case "RECEIVE_PO":
                         // Perform actions for updating a purchase order
-                        Console.WriteLine("Processing UPDATE_PO action...");
-                        purchaseOrderData = await _oneXerpClient.getPurchaseOrderData(itemId);
-                        isSuccessful = _quickBooksConnector.UpdatePurchaseOrder(purchaseOrderData);
+                        Console.WriteLine("Processing UPDATE_PO action... waiting to hear back about this");
+                        //purchaseOrderData = await _oneXerpClient.getPurchaseOrderData(itemId);
+                        //isSuccessful = _quickBooksClient.UpdatePurchaseOrder(purchaseOrderData);
                         break;
                     case "CREATE_VENDOR":
                         // Perform actions for adding a vendor
                         Console.WriteLine("Processing CREATE_VENDOR action...");
-                        vendor = await _oneXerpClient.getVendorData(itemId);
-                        isSuccessful = _quickBooksConnector.CreateVendor(vendorData);
+                        vendorData = await _oneXerpClient.getVendorData(itemId);
+                        isSuccessful = _quickBooksClient.CreateVendor(vendorData);
                         break;
                     default:
                         // Handle unrecognized actionType

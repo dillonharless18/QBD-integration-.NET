@@ -34,7 +34,7 @@ namespace oneXerpQB.Tests
                 }
             };
 
-            var quickBooksConnector = new QuickBooksConnector(qbCompanyFilePath);
+            var quickBooksConnector = new QuickBooksClient(qbCompanyFilePath);
 
             // Act
             bool result = quickBooksConnector.CreatePurchaseOrder(purchaseOrderData);

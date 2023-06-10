@@ -9,6 +9,7 @@ using Newtonsoft.Json;
 using System.Configuration;
 using System.IO;
 using Microsoft.Extensions.Configuration;
+using System.Numerics;
 
 namespace oneXerpQB.Tests
 {
@@ -21,22 +22,19 @@ namespace oneXerpQB.Tests
             // Arrange
 
             var mockSqsClient = new Mock<AmazonSQSClient>("access-key", "secret-key", Amazon.RegionEndpoint.USEast1);
-            var mockQuickBooksConnector = new Mock<IQuickBooksConnector>();
-            var backgroundPoller = new BackgroundPoller(mockSqsClient.Object, "sqs-url", mockQuickBooksConnector.Object);
+            var mockOneXErpClient = new Mock<OneXerpClient>();
+            var mockQuickBooksClient = new Mock<IQuickBooksClient>();
+            var backgroundPoller = new BackgroundPoller(mockSqsClient.Object, mockOneXErpClient.Object, "sqs-url", mockQuickBooksClient.Object);
 
-            string jsonMessage = "{\"VendorName\": \"Test Vendor\", \"OrderDate\": \"2023-03-17T00:00:00\", \"Items\": [{ \"ItemName\": \"Test Item\", \"Quantity\": 5, \"Rate\": 10.0 }]}";
+            string jsonMessage = "{ \"itemId\": \"xxxx-yyyy-zzzz-1111-2222-3333\", \"actionType\": \"CREATE_VENDOR\"}";
 
             // Act
             var result = backgroundPoller.ParseMessage(jsonMessage);
 
             // Assert
             Assert.NotNull(result);
-            Assert.Equal("Test Vendor", result.VendorName);
-            Assert.Equal(new System.DateTime(2023, 03, 17), result.OrderDate);
-            Assert.Single(result.Items);
-            Assert.Equal("Test Item", result.Items[0].ItemName);
-            Assert.Equal(5, result.Items[0].Quantity);
-            Assert.Equal(10.0, result.Items[0].Rate);
+            Assert.Equal("xxxx-yyyy-zzzz-1111-2222-3333", result.itemId);
+            Assert.Equal("CREATE_VENDOR", result.actionType);
         }
 
         [Fact]
@@ -44,20 +42,21 @@ namespace oneXerpQB.Tests
         {
             // Arrange
             var mockSqsClient = new Mock<AmazonSQSClient>("access-key", "secret-key", Amazon.RegionEndpoint.USEast1);
-            var mockQuickBooksConnector = new Mock<IQuickBooksConnector>();
-            var backgroundPoller = new BackgroundPoller(mockSqsClient.Object, "sqs-url", mockQuickBooksConnector.Object);
+            var mockOneXErpClient = new Mock<OneXerpClient>();
+            var mockQuickBooksClient = new Mock<IQuickBooksClient>();
+            var backgroundPoller = new BackgroundPoller(mockSqsClient.Object, mockOneXErpClient.Object, "sqs-url", mockQuickBooksClient.Object);
 
             var message = new Message
             {
-                Body = "{\"VendorName\": \"Test Vendor\", \"OrderDate\": \"2023-03-17T00:00:00\", \"Items\": [{ \"ItemName\": \"Test Item\", \"Quantity\": 5, \"Rate\": 10.0 }]}"
-            };
+                Body = "{ \"itemId\": \"xxxx-yyyy-zzzz-1111-2222-3333\", \"actionType\": \"CREATE_VENDOR\"}"
+        };
             var purchaseOrderData = JsonConvert.DeserializeObject<PurchaseOrderData>(message.Body);
 
             // Act
             await backgroundPoller.ProcessMessage(message);
 
             // Assert
-            mockQuickBooksConnector.Verify(connector => connector.CreatePurchaseOrder(It.Is<PurchaseOrderData>(data => ArePurchaseOrderDataEqual(data, purchaseOrderData))), Times.Once);
+            mockQuickBooksClient.Verify(connector => connector.CreatePurchaseOrder(It.Is<PurchaseOrderData>(data => ArePurchaseOrderDataEqual(data, purchaseOrderData))), Times.Once);
         }
 
         private bool ArePurchaseOrderDataEqual(PurchaseOrderData data1, PurchaseOrderData data2)

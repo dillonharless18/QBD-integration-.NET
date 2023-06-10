@@ -173,18 +173,19 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Address.cs" />
+    <Compile Include="ItemReceiptData.cs" />
+    <Compile Include="ItemReceiptLineData.cs" />
     <Compile Include="OneXerpClient.cs" />
     <Compile Include="OneXerpQBMessage.cs" />
     <Compile Include="PurchaseOrderData.cs" />
     <Compile Include="PurchaseOrderItem.cs" />
-    <Compile Include="Vendor.cs" />
+    <Compile Include="VendorData.cs" />
     <Compile Include="AssemblyInfo.cs">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="POHandler.cs" />
     <Compile Include="QuickBooksWarningException.cs" />
     <Compile Include="QuickBooksErrorException.cs" />
-    <Compile Include="QuickBooksConnector.cs" />
+    <Compile Include="QuickBooksClient.cs" />
     <Compile Include="Main.cs" />
     <Content Include="App.ico" />
     <EmbeddedResource Include="Main.resx">

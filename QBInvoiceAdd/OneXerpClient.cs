@@ -7,9 +7,17 @@ using System.Threading.Tasks;
 
 namespace oneXerpQB
 {
-    public class OneXerpClient
+
+    public interface IOneXerpClient
     {
-        internal async Task<PurchaseOrderData> getPurchaseOrderData(string itemId)
+        Task<PurchaseOrderData> getPurchaseOrderData(string itemId);
+        Task<VendorData> getVendorData(string itemId);
+
+    }
+
+    public class OneXerpClient : IOneXerpClient
+    {
+        public async Task<PurchaseOrderData> getPurchaseOrderData(string itemId)
         {
             // TODO: Replace this with actual call to the API
 
@@ -26,12 +34,12 @@ namespace oneXerpQB
             });
         }
 
-        internal async Task<Vendor> getVendorData(string itemId)
+        public async Task<VendorData> getVendorData(string itemId)
         {
             // TODO: Replace this with actual call to the API
 
             // Return dummy data for now
-            return await Task.FromResult(new Vendor(
+            return await Task.FromResult(new VendorData(
                 "Vendor 1",
                 "Company 1",
                 new Address(
