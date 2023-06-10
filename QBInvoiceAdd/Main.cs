@@ -8,6 +8,7 @@ using Newtonsoft.Json;
 using System.Threading.Tasks;
 using System.IO;
 using Microsoft.Extensions.Configuration;
+using System.Linq;
 
 namespace oneXerpQB
 {
@@ -70,8 +71,9 @@ namespace oneXerpQB
         private readonly int _pollingInterval;
         private readonly IQuickBooksConnector _quickBooksConnector;
         private SemaphoreSlim _semaphore;
+        private readonly OneXerpClient _oneXerpClient;
 
-        public BackgroundPoller(AmazonSQSClient sqsClient, string sqsUrl, IQuickBooksConnector quickBooksConnector, int pollingInterval = 20000, int maxConcurrency = 1)
+        public BackgroundPoller(AmazonSQSClient sqsClient, OneXerpClient oneXerpClient, string sqsUrl, IQuickBooksConnector quickBooksConnector, int pollingInterval = 20000, int maxConcurrency = 1)
         {
             _sqsClient = sqsClient;
             _sqsUrl = sqsUrl;
@@ -79,14 +81,47 @@ namespace oneXerpQB
             _running = true;
             _pollingInterval = pollingInterval;
             _semaphore = new SemaphoreSlim(maxConcurrency, maxConcurrency);
+            _oneXerpClient = oneXerpClient;
         }
 
         internal async Task ProcessMessage(Message message)
         {
             try
             {
-                PurchaseOrderData purchaseOrderData = ParseMessage(message.Body);
-                bool isSuccessful = _quickBooksConnector.CreatePurchaseOrder(purchaseOrderData);
+                OneXerpQBMessage parsedMessage = ParseMessage(message.Body);
+                bool isSuccessful = false;
+                string itemId = parsedMessage.itemId;
+                string actionType = parsedMessage.actionType.ToUpperInvariant();
+                PurchaseOrderData purchaseOrderData;
+                Vendor vendor;
+
+                switch (actionType)
+                {
+                    
+                    case "CREATE_PO":
+                        // Perform actions for creating a purchase order
+                        Console.WriteLine("Processing CREATE_PO action...");
+                        purchaseOrderData = await _oneXerpClient.getPurchaseOrderData(itemId);
+                        isSuccessful = _quickBooksConnector.CreatePurchaseOrder(purchaseOrderData);
+                        break;
+                    case "UPDATE_PO":
+                        // Perform actions for updating a purchase order
+                        Console.WriteLine("Processing UPDATE_PO action...");
+                        purchaseOrderData = await _oneXerpClient.getPurchaseOrderData(itemId);
+                        isSuccessful = _quickBooksConnector.UpdatePurchaseOrder(purchaseOrderData);
+                        break;
+                    case "CREATE_VENDOR":
+                        // Perform actions for adding a vendor
+                        Console.WriteLine("Processing CREATE_VENDOR action...");
+                        vendor = await _oneXerpClient.getVendorData(itemId);
+                        isSuccessful = _quickBooksConnector.CreateVendor(vendorData);
+                        break;
+                    default:
+                        // Handle unrecognized actionType
+                        Console.WriteLine($"Unrecognized actionType: {actionType}");
+                        break;
+                }
+
                 
                 if (isSuccessful)
                 {
@@ -171,29 +206,39 @@ namespace oneXerpQB
             }
         }
 
-        internal PurchaseOrderData ParseMessage(string messageBody)
+        private bool IsValidActionType(string actionType)
         {
-            // You can use a JSON or XML serializer to parse the messageBody, depending on the message format
-            // For simplicity, we'll assume the messageBody contains JSON
-            var poData = JsonConvert.DeserializeObject<PurchaseOrderData>(messageBody);
-            return poData;
+            string[] validActionTypes = { "CREATE_VENDOR", "CREATE_PO", "RECEIVE_PO" };
+            return validActionTypes.Contains(actionType, StringComparer.OrdinalIgnoreCase);
         }
-    }
 
-    public class PurchaseOrderData
-    {
-        public string VendorName { get; set; }
-        public DateTime OrderDate { get; set; }
-        public List<PurchaseOrderItem> Items { get; set; }
-    }
 
-    public class PurchaseOrderItem
-    {
-        public string ItemName { get; set; }
-        public int Quantity { get; set; }
-        public double Rate { get; set; }
-    }
+        /*
+         * Args:
+         *     messageBody: JSON string {
+         *         itemId: string (PO/Vendor id in oneXerp database)
+         *         actionType: string ("CREATE_VENDOR" | "CREATE_PO" | "RECEIVE_PO")
+         *     }
+         */
+        internal OneXerpQBMessage ParseMessage(string messageBody)
+        {
+           
+            var messageData = JsonConvert.DeserializeObject<OneXerpQBMessage>(messageBody);
 
+            if (!IsValidActionType(messageData.actionType))
+            {
+                throw new ArgumentException($"Invalid actionType value from queue. Action type found: {messageData.actionType}");
+            }
+
+            if (string.IsNullOrEmpty(messageData.itemId))
+            {
+                throw new ArgumentException($"Invalid itemId value from queue. Action type found: {messageData.actionType}");
+            }
+
+            return messageData;
+        }
+        
+    }
 }
 
     
