@@ -9,12 +9,13 @@ using System.Threading.Tasks;
 using System.IO;
 using Microsoft.Extensions.Configuration;
 using System.Linq;
+using Amazon.Runtime.Internal.Util;
 
 namespace oneXerpQB
 {
     class Program
     {
-        static void Main(string[] args)
+        static async Task Main(string[] args)
         {
             
             // Build configuration
@@ -38,7 +39,8 @@ namespace oneXerpQB
             var poller = new BackgroundPoller(sqsClient, oneXerpClient, sqsUrl, quickBooksClient, 20000, 1);
             try
             {
-                poller.Start();
+                var cancellationToken = CancellationToken.None;
+                await poller.Start(cancellationToken);
 
                 while (true)
                 {
@@ -48,12 +50,12 @@ namespace oneXerpQB
                         Console.ReadKey();
 
                         // Stop the background worker if necessary.
-                        poller.Stop();
+                        await poller.Stop();
                     }
                     catch (Exception ex)
                     {
                         Console.WriteLine($"An error occurred: {ex.Message}. Restarting the background poller...");
-                        poller.Start();
+                        await poller.Start(cancellationToken);
                     }
                 }
             }
@@ -69,14 +71,18 @@ namespace oneXerpQB
     {
         private readonly AmazonSQSClient _sqsClient;
         private readonly string _sqsUrl;
-        private Thread _pollingThread;
         private bool _running;
         private readonly int _pollingInterval;
         private readonly IQuickBooksClient _quickBooksClient;
         private SemaphoreSlim _semaphore;
-        private readonly OneXerpClient _oneXerpClient;
+        private readonly IOneXerpClient _oneXerpClient;
+        private CancellationTokenSource _cts;
+        private Task _pollingTask;
+        public bool IsPollingActive => _pollingTask != null && !_pollingTask.IsCompleted;
+        private readonly ILogger _logger;
 
-        public BackgroundPoller(AmazonSQSClient sqsClient, OneXerpClient oneXerpClient, string sqsUrl, IQuickBooksClient quickBooksConnector, int pollingInterval = 20000, int maxConcurrency = 1)
+
+        public BackgroundPoller(AmazonSQSClient sqsClient, IOneXerpClient oneXerpClient, string sqsUrl, IQuickBooksClient quickBooksConnector, int pollingInterval = 20000, int maxConcurrency = 1)
         {
             _sqsClient = sqsClient;
             _sqsUrl = sqsUrl;
@@ -85,7 +91,67 @@ namespace oneXerpQB
             _pollingInterval = pollingInterval;
             _semaphore = new SemaphoreSlim(maxConcurrency, maxConcurrency);
             _oneXerpClient = oneXerpClient;
+            _cts = new CancellationTokenSource();
+            //_logger = logger;
         }
+
+
+        public async Task Start(CancellationToken externalToken)
+        {
+            if (_pollingTask != null && !_pollingTask.IsCompleted)
+            {
+                // already started
+                return;
+            }
+
+            _cts = CancellationTokenSource.CreateLinkedTokenSource(externalToken);
+
+            _pollingTask = Task.Run(async () =>
+            {
+                while (!_cts.Token.IsCancellationRequested)
+                {
+                    try
+                    {
+                        // PollSqsQueue or whatever method you're using for polling.
+                        await PollSqsQueue(_cts.Token);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        // Task was cancelled
+                        break;
+                    }
+                    catch (Exception ex)
+                    {
+                        // Log your exception here
+
+                    }
+                }
+            }, _cts.Token);
+        }
+
+        public async Task Stop()
+        {
+            if (_cts != null)
+            {
+                _cts.Cancel();
+
+                if (_pollingTask != null)
+                {
+                    try
+                    {
+                        await _pollingTask;
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        // Task was cancelled, which is expected. We can ignore this exception.
+                    }
+                }
+
+                _cts.Dispose();
+                _cts = null;
+            }
+        }
+
 
         internal async Task ProcessMessage(Message message)
         {
@@ -162,21 +228,9 @@ namespace oneXerpQB
             }
         }
 
-        public void Start()
+        public async Task PollSqsQueue(CancellationToken token)
         {
-            _pollingThread = new Thread(async () => await PollSqsQueue());
-            _pollingThread.Start();
-        }
-
-        public void Stop()
-        {
-            _running = false;
-            _pollingThread.Join();
-        }
-
-        public async Task PollSqsQueue()
-        {
-            while (_running)
+            while (!token.IsCancellationRequested && _running)
             {
                 ReceiveMessageResponse response = await _sqsClient.ReceiveMessageAsync(new ReceiveMessageRequest
                 {
@@ -203,6 +257,11 @@ namespace oneXerpQB
                             _semaphore.Release();
                         }
                     });
+                }
+
+                if (token.IsCancellationRequested)
+                {
+                    _running = false;
                 }
 
                 await Task.Delay(_pollingInterval);
