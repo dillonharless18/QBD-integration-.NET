@@ -12,8 +12,8 @@ namespace oneXerpQB.Tests
         public void CreatePurchaseOrder_FailureScenario_ReturnsFalseAndDoesNotAddPurchaseOrder()
         {
             // Arrange
-            var mockQuickBooksConnector = new MockQuickBooksConnector();
-            mockQuickBooksConnector.ShouldCreatePurchaseOrderSucceed = false;
+            var mockQuickBooksClient = new MockQuickBooksClient();
+            mockQuickBooksClient.ShouldCreatePurchaseOrderSucceed = false;
 
             var purchaseOrderData = new PurchaseOrderData
             {
@@ -26,11 +26,11 @@ namespace oneXerpQB.Tests
             };
 
             // Act
-            bool result = mockQuickBooksConnector.CreatePurchaseOrder(purchaseOrderData);
+            bool result = mockQuickBooksClient.CreatePurchaseOrder(purchaseOrderData);
 
             // Assert
             Assert.False(result, "CreatePurchaseOrder should return false in a failure scenario.");
-            Assert.Empty(mockQuickBooksConnector.CreatedPurchaseOrders);
+            Assert.Empty(mockQuickBooksClient.CreatedPurchaseOrders);
         }
     }
 }
