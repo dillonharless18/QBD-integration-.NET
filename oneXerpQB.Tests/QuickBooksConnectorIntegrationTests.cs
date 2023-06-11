@@ -42,5 +42,50 @@ namespace oneXerpQB.Tests
             // Assert
             Assert.True(result);
         }
+
+
+        [Fact]
+        public void CreateVendor_ValidData_CreatesVendorInQuickBooks()
+        {
+            // Arrange
+            var configuration = new Microsoft.Extensions.Configuration.ConfigurationBuilder()
+                .SetBasePath(Directory.GetCurrentDirectory())
+                .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+                .Build();
+            var qbCompanyFilePath = configuration["QuickBooks:CompanyFilePath"];
+
+            var vendorAddress = new Address(
+                    "123 Vendor St.",
+                    "",
+                    "",
+                    "",
+                    "",
+                    "Test Vendor City",
+                    "NC",
+                    "12345",
+                    "Vendor Country",
+                    "Test Notes"
+                )
+            {
+                // ... any additional fields your Address might have ...
+            };
+
+            var vendorData = new VendorData(
+                "Test Vendor",
+                "Test Vendor",
+                vendorAddress,
+                "123-456-7890"
+            );
+
+            var quickBooksConnector = new QuickBooksClient(qbCompanyFilePath);
+
+            // Act
+            bool result = quickBooksConnector.CreateVendor(vendorData);
+
+            // Assert
+            Assert.True(result);
+        }
+
+
     }
 }
