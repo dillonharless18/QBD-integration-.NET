@@ -89,6 +89,8 @@ namespace oneXerpQB.Tests
             Assert.True(result);
         }
 
+        // TODO Add a test for Delete Vendor here
+
         [Fact]
         public void GetVendorListId_ValidData_GetsVendor()
         {

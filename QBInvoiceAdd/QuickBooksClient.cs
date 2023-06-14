@@ -160,8 +160,10 @@ namespace oneXerpQB
             return result;
         }
 
-        public void DeleteVendor(string vendorId) // You can only delete List Type items when quickbooks is opened in single user mode
+        // NOTE: You can only delete List Type items when quickbooks is opened in single user mode
+        public void DeleteVendor(string vendorId) 
         {
+            // TODO - determine if we should accept name and do this by name
             bool sessionBegun = false;
             bool connectionOpen = false;
             QBSessionManager sessionManager = null;
@@ -179,7 +181,7 @@ namespace oneXerpQB
                 BuildVendorDeleteRq(requestMsgSet, vendorId);
 
                 // Connect to QuickBooks and begin a session
-                sessionManager.OpenConnection("", "Vendor Deletion Sample Code");
+                sessionManager.OpenConnection("", _qbApplicationName);
                 connectionOpen = true;
                 sessionManager.BeginSession("", ENOpenMode.omDontCare);
                 sessionBegun = true;
