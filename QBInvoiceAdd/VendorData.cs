@@ -8,7 +8,7 @@ namespace oneXerpQB
         public string Name { get; set; }
         public string CompanyName { get; set; }
         public Address VendorAddress { get; set; }
-        public string Phone { get; set; }
+        public string Phone { get; set; } 
 
         public VendorData(string name, string companyName, Address vendorAddress, string phone)
         {

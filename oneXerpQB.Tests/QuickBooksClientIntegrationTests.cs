@@ -34,10 +34,10 @@ namespace oneXerpQB.Tests
                 }
             };
 
-            var quickBooksConnector = new QuickBooksClient(qbCompanyFilePath);
+            var quickBooksClient = new QuickBooksClient(qbCompanyFilePath);
 
             // Act
-            bool result = quickBooksConnector.CreatePurchaseOrder(purchaseOrderData);
+            bool result = quickBooksClient.CreatePurchaseOrder(purchaseOrderData);
 
             // Assert
             Assert.True(result);
@@ -77,10 +77,10 @@ namespace oneXerpQB.Tests
                 "123-456-7890"
             );
 
-            var quickBooksConnector = new QuickBooksClient(qbCompanyFilePath);
+            var quickBooksClient = new QuickBooksClient(qbCompanyFilePath);
 
             // Act
-            bool result = quickBooksConnector.CreateVendor(vendorData);
+            bool result = quickBooksClient.CreateVendor(vendorData);
 
             // Assert
             Assert.True(result);

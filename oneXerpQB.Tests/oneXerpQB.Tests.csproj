@@ -160,7 +160,7 @@
     <Compile Include="BackgroundPollerTests.cs" />
     <Compile Include="QuickBooksClientTests.cs" />
     <Compile Include="QuickBooksClientIntegrationTests.cs" />
-    <Compile Include="MockQuickBooksConnector.cs" />
+    <Compile Include="MockQuickBooksClient.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>

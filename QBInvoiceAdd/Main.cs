@@ -82,11 +82,11 @@ namespace oneXerpQB
         private readonly ILogger _logger;
 
 
-        public BackgroundPoller(AmazonSQSClient sqsClient, IOneXerpClient oneXerpClient, string sqsUrl, IQuickBooksClient quickBooksConnector, int pollingInterval = 20000, int maxConcurrency = 1)
+        public BackgroundPoller(AmazonSQSClient sqsClient, IOneXerpClient oneXerpClient, string sqsUrl, IQuickBooksClient quickBooksClient, int pollingInterval = 20000, int maxConcurrency = 1)
         {
             _sqsClient = sqsClient;
             _sqsUrl = sqsUrl;
-            _quickBooksClient = quickBooksConnector;
+            _quickBooksClient = quickBooksClient;
             _running = true;
             _pollingInterval = pollingInterval;
             _semaphore = new SemaphoreSlim(maxConcurrency, maxConcurrency);
@@ -183,6 +183,7 @@ namespace oneXerpQB
                         // Perform actions for adding a vendor
                         Console.WriteLine("Processing CREATE_VENDOR action...");
                         vendorData = await _oneXerpClient.getVendorData(itemId);
+                        Console.WriteLine($"vendorData: {vendorData}");
                         isSuccessful = _quickBooksClient.CreateVendor(vendorData);
                         break;
                     default:
