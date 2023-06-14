@@ -4,16 +4,16 @@ namespace oneXerpQB
 {
     public class Address
     {
-        private string _addr1;
-        private string _addr2;
-        private string _addr3;
-        private string _addr4;
-        private string _addr5;
-        private string _city;
-        private string _state;
-        private string _postalCode;
-        private string _country;
-        private string _note;
+        internal string _addr1 { get; set; }
+        internal string _addr2 { get; set; }
+        internal string _addr3 { get; set; }
+        internal string _addr4 { get; set; }
+        internal string _addr5 { get; set; }
+        internal string _city { get; set; }
+        internal string _state { get; set; }
+        internal string _postalCode { get; set; }
+        internal string _country { get; set; }
+        internal string _note { get; set; }
 
         public Address(string addr1, string addr2, string addr3, string addr4, string addr5,
             string city, string state, string postalCode, string country, string note)

@@ -6,7 +6,7 @@ using System.IO;
 
 namespace oneXerpQB.Tests
 {
-    public class QuickBooksConnectorIntegrationTests
+    public class QuickBooksClientIntegrationTests
     {
         [Fact]
         public void CreatePurchaseOrder_ValidData_CreatesPurchaseOrderInQuickBooks()

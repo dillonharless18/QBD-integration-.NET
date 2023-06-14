@@ -4,7 +4,7 @@ using System.Collections.Generic;
 
 namespace oneXerpQB.Tests
 {
-    public class QuickBooksConnectorTests
+    public class QuickBooksClientTests
     {
         // ...
 

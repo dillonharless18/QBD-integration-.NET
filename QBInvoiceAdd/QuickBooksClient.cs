@@ -102,14 +102,23 @@ namespace oneXerpQB
                     throw new System.IO.FileNotFoundException($"QuickBooks company file not found at path: {_qbCompanyFilePath}");
                 }
 
+                // Start the session
                 sessionManager.OpenConnection("", "oneXerpQB");
                 sessionManager.BeginSession(_qbCompanyFilePath, ENOpenMode.omDontCare);
 
-                // Create a new Vendor using QBFC
+                // Create the message set request
                 IMsgSetRequest requestMsgSet = sessionManager.CreateMsgSetRequest("US", 16, 0);
-                IVendorAdd vendorAdd = requestMsgSet.AppendVendorAddRq();
-                vendorAdd.Name.SetValue(vendorData.Name);
-                // Set other vendor properties as needed
+
+                // Add requests to the message set request - add a VendorAddRequest to the set
+                IVendorAdd addVendorRequest = requestMsgSet.AppendVendorAddRq();
+                addVendorRequest.Name.SetValue(vendorData.Name);
+                addVendorRequest.CompanyName.SetValue(vendorData.CompanyName);
+                addVendorRequest.Phone.SetValue(vendorData.Phone);
+                addVendorRequest.VendorAddress.Addr1.SetValue(vendorData.VendorAddress._addr1);
+                addVendorRequest.VendorAddress.Addr2.SetValue(vendorData.VendorAddress._addr2);
+                addVendorRequest.VendorAddress.Addr3.SetValue(vendorData.VendorAddress._addr3);
+                addVendorRequest.VendorAddress.Addr4.SetValue(vendorData.VendorAddress._addr4);
+                addVendorRequest.VendorAddress.Addr5.SetValue(vendorData.VendorAddress._addr5);
 
                 // Send the request to QuickBooks
                 IMsgSetResponse responseMsgSet = sessionManager.DoRequests(requestMsgSet);
