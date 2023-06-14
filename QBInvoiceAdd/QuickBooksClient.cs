@@ -20,10 +20,12 @@ namespace oneXerpQB
     public class QuickBooksClient : IQuickBooksClient
     {
         private string _qbCompanyFilePath;
+        private string _qbApplicationName;
 
         public QuickBooksClient(string qbCompanyFilePath)
         {
             _qbCompanyFilePath = qbCompanyFilePath;
+            _qbApplicationName = "oneXerpQB";
         }
 
         public bool CreatePurchaseOrder(PurchaseOrderData poData) // TODO update this to return a more robust message other than a bool
@@ -39,7 +41,7 @@ namespace oneXerpQB
                     throw new System.IO.FileNotFoundException($"QuickBooks company file not found at path: {_qbCompanyFilePath}");
                 }
 
-                sessionManager.OpenConnection("", "oneXerpQB");
+                sessionManager.OpenConnection("", _qbApplicationName);
                 sessionManager.BeginSession(_qbCompanyFilePath, ENOpenMode.omDontCare);
 
                 // Create a new PurchaseOrder using QBFC
@@ -158,7 +160,7 @@ namespace oneXerpQB
             return result;
         }
 
-        public void DeleteVendor(string vendorId)
+        public void DeleteVendor(string vendorId) // You can only delete List Type items when quickbooks is opened in single user mode
         {
             bool sessionBegun = false;
             bool connectionOpen = false;
@@ -253,67 +255,106 @@ namespace oneXerpQB
             // In this case, there may not be much to do as the vendor has been deleted
         }
 
+        public string GetVendorListIdByName(string vendorName) // Things like Vendors are of the type List in Quickbooks.
+        {
+            // Create the session manager
+            QBSessionManager sessionManager = new QBSessionManager();
 
-            // TODO - After hearing from Eric about whether we can just recieve the entire PO or close it, finish implementing this
-            //public bool CreateItemReceipt(ItemReceiptData itemReceiptData, string poId)
-            //{
-            //    bool result = false;
-            //    QBSessionManager sessionManager = new QBSessionManager();
+            // Start a session
+            sessionManager.OpenConnection("", _qbApplicationName);
+            sessionManager.BeginSession("", ENOpenMode.omDontCare);
 
-            //    try
-            //    {
-            //        if (!System.IO.File.Exists(_qbCompanyFilePath))
-            //        {
-            //            throw new System.IO.FileNotFoundException($"QuickBooks company file not found at path: {_qbCompanyFilePath}");
-            //        }
+            // Create the message set request
+            IMsgSetRequest requestMsgSet = sessionManager.CreateMsgSetRequest("US", 13, 0);
 
-            //        sessionManager.OpenConnection("", "oneXerpQB");
-            //        sessionManager.BeginSession(_qbCompanyFilePath, ENOpenMode.omDontCare);
+            // Create the vendor query
+            IVendorQuery vendorQuery = requestMsgSet.AppendVendorQueryRq();
+            vendorQuery.ORVendorListQuery.FullNameList.Add(vendorName);
 
-            //        // Create a new ItemReceipt using QBFC
-            //        IMsgSetRequest requestMsgSet = sessionManager.CreateMsgSetRequest("US", 16, 0);
-            //        IItemReceiptAdd itemReceiptAdd = requestMsgSet.AppendItemReceiptAddRq();
-            //        itemReceiptAdd.APAccountRef.FullName.SetValue(itemReceiptData.AccountName);
-            //        itemReceiptAdd.TxnDate.SetValue(itemReceiptData.ReceiptDate);
+            // Send the request and get the response
+            IMsgSetResponse responseMsgSet = sessionManager.DoRequests(requestMsgSet);
 
-            //        // Link the ItemReceipt to the PurchaseOrder
-            //        itemReceiptAdd.LinkToTxnID.SetValue(poId);
+            // End the session
+            sessionManager.EndSession();
+            sessionManager.CloseConnection();
 
-            //        // Add items to the ItemReceipt
-            //        foreach (var item in itemReceiptData.Items)
-            //        {
-            //            IItemReceiptLineAdd lineAdd = itemReceiptAdd.ORItemLineAddList.Append().ItemLineAdd;
-            //            lineAdd.ItemRef.FullName.SetValue(item.ItemName);
-            //            lineAdd.Quantity.SetValue(item.Quantity);
-            //            lineAdd.Amount.SetValue(item.Amount);
-            //        }
+            // Handle the response
+            IResponse response = responseMsgSet.ResponseList.GetAt(0);
+            IVendorRetList vendorRetList = (IVendorRetList)response.Detail;
 
-            //        // Send the request to QuickBooks
-            //        IMsgSetResponse responseMsgSet = sessionManager.DoRequests(requestMsgSet);
-            //        IResponse response = responseMsgSet.ResponseList.GetAt(0);
-
-            //        if (response.StatusCode < 0)
-            //        {
-            //            Console.WriteLine($"Error adding Item Receipt: {response.StatusMessage}");
-            //            throw new QuickBooksErrorException(response.StatusCode, "An error occurred while creating the Item Receipt in QuickBooks.");
-            //        }
-            //        else if (response.StatusCode > 0)
-            //        {
-            //            throw new QuickBooksWarningException(response.StatusCode, "A warning occurred while creating the Item Receipt in QuickBooks.");
-            //        }
-            //        else
-            //        {
-            //            Console.WriteLine("Item Receipt added successfully.");
-            //            result = true;
-            //        }
-            //    }
-            //    finally
-            //    {
-            //        sessionManager.EndSession();
-            //        sessionManager.CloseConnection();
-            //    }
-
-            //    return result;
-            //}
+            if (vendorRetList == null || vendorRetList.Count == 0)
+            {
+                // No vendor found with the given name
+                return null;
+            }
+            else
+            {
+                // Return the ListID of the first vendor found
+                return vendorRetList.GetAt(0).ListID.GetValue();
+            }
         }
+
+
+        // TODO - After hearing from Eric about whether we can just recieve the entire PO or close it, finish implementing this
+        //public bool CreateItemReceipt(ItemReceiptData itemReceiptData, string poId)
+        //{
+        //    bool result = false;
+        //    QBSessionManager sessionManager = new QBSessionManager();
+
+        //    try
+        //    {
+        //        if (!System.IO.File.Exists(_qbCompanyFilePath))
+        //        {
+        //            throw new System.IO.FileNotFoundException($"QuickBooks company file not found at path: {_qbCompanyFilePath}");
+        //        }
+
+        //        sessionManager.OpenConnection("", _qbApplicationName);
+        //        sessionManager.BeginSession(_qbCompanyFilePath, ENOpenMode.omDontCare);
+
+        //        // Create a new ItemReceipt using QBFC
+        //        IMsgSetRequest requestMsgSet = sessionManager.CreateMsgSetRequest("US", 16, 0);
+        //        IItemReceiptAdd itemReceiptAdd = requestMsgSet.AppendItemReceiptAddRq();
+        //        itemReceiptAdd.APAccountRef.FullName.SetValue(itemReceiptData.AccountName);
+        //        itemReceiptAdd.TxnDate.SetValue(itemReceiptData.ReceiptDate);
+
+        //        // Link the ItemReceipt to the PurchaseOrder
+        //        itemReceiptAdd.LinkToTxnID.SetValue(poId);
+
+        //        // Add items to the ItemReceipt
+        //        foreach (var item in itemReceiptData.Items)
+        //        {
+        //            IItemReceiptLineAdd lineAdd = itemReceiptAdd.ORItemLineAddList.Append().ItemLineAdd;
+        //            lineAdd.ItemRef.FullName.SetValue(item.ItemName);
+        //            lineAdd.Quantity.SetValue(item.Quantity);
+        //            lineAdd.Amount.SetValue(item.Amount);
+        //        }
+
+        //        // Send the request to QuickBooks
+        //        IMsgSetResponse responseMsgSet = sessionManager.DoRequests(requestMsgSet);
+        //        IResponse response = responseMsgSet.ResponseList.GetAt(0);
+
+        //        if (response.StatusCode < 0)
+        //        {
+        //            Console.WriteLine($"Error adding Item Receipt: {response.StatusMessage}");
+        //            throw new QuickBooksErrorException(response.StatusCode, "An error occurred while creating the Item Receipt in QuickBooks.");
+        //        }
+        //        else if (response.StatusCode > 0)
+        //        {
+        //            throw new QuickBooksWarningException(response.StatusCode, "A warning occurred while creating the Item Receipt in QuickBooks.");
+        //        }
+        //        else
+        //        {
+        //            Console.WriteLine("Item Receipt added successfully.");
+        //            result = true;
+        //        }
+        //    }
+        //    finally
+        //    {
+        //        sessionManager.EndSession();
+        //        sessionManager.CloseConnection();
+        //    }
+
+        //    return result;
+        //}
     }
+}

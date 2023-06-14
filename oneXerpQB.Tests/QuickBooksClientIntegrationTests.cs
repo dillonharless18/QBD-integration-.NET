@@ -8,6 +8,9 @@ namespace oneXerpQB.Tests
 {
     public class QuickBooksClientIntegrationTests
     {
+
+        private readonly string _vendorName = "Test Vendor";
+
         [Fact]
         public void CreatePurchaseOrder_ValidData_CreatesPurchaseOrderInQuickBooks()
         {
@@ -71,8 +74,8 @@ namespace oneXerpQB.Tests
             };
 
             var vendorData = new VendorData(
-                "Test Vendor",
-                "Test Vendor",
+                _vendorName,
+                _vendorName,
                 vendorAddress,
                 "123-456-7890"
             );
@@ -86,6 +89,24 @@ namespace oneXerpQB.Tests
             Assert.True(result);
         }
 
+        [Fact]
+        public void GetVendorListId_ValidData_GetsVendor()
+        {
+            // Arrange
+            var configuration = new Microsoft.Extensions.Configuration.ConfigurationBuilder()
+                .SetBasePath(Directory.GetCurrentDirectory())
+                .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+                .Build();
+            var qbCompanyFilePath = configuration["QuickBooks:CompanyFilePath"];
 
+            var quickBooksClient = new QuickBooksClient(qbCompanyFilePath);
+
+            // Act
+            var listId = quickBooksClient.GetVendorListIdByName(_vendorName);
+
+            // Assert
+            Assert.NotNull(listId);
+        }
     }
+
 }
