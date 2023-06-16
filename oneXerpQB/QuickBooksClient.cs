@@ -119,9 +119,9 @@ namespace oneXerpQB
                 addVendorRequest.Phone.SetValue(vendorData.Phone);
                 addVendorRequest.VendorAddress.Addr1.SetValue(vendorData.VendorAddress._addr1);
                 addVendorRequest.VendorAddress.Addr2.SetValue(vendorData.VendorAddress._addr2);
-                addVendorRequest.VendorAddress.Addr3.SetValue(vendorData.VendorAddress._addr3);
-                addVendorRequest.VendorAddress.Addr4.SetValue(vendorData.VendorAddress._addr4);
-                addVendorRequest.VendorAddress.Addr5.SetValue(vendorData.VendorAddress._addr5);
+                //addVendorRequest.VendorAddress.Addr3.SetValue(vendorData.VendorAddress._addr3);
+                //addVendorRequest.VendorAddress.Addr4.SetValue(vendorData.VendorAddress._addr4);
+                //addVendorRequest.VendorAddress.Addr5.SetValue(vendorData.VendorAddress._addr5);
                 addVendorRequest.VendorAddress.City.SetValue(vendorData.VendorAddress._city);
                 addVendorRequest.VendorAddress.State.SetValue(vendorData.VendorAddress._state);
                 addVendorRequest.VendorAddress.Country.SetValue(vendorData.VendorAddress._country);
