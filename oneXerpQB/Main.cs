@@ -46,11 +46,14 @@ namespace oneXerpQB
                 {
                     try
                     {
-                        // Simulates a blocking operation to keep the application running.
-                        Console.ReadKey();
-
-                        // Stop the background worker if necessary.
-                        await poller.Stop();
+                        if (File.Exists("stop.txt"))
+                        {
+                            Logger.Log("Stop signal received. Stopping the background poller...");
+                            await poller.Stop();
+                            File.Delete("stop.txt"); // remove the signal file
+                            break; // stop the loop
+                        }
+                        await Task.Delay(1000); // delay next check by 1 second
                     }
                     catch (Exception ex)
                     {
@@ -58,6 +61,7 @@ namespace oneXerpQB
                         await poller.Start(cancellationToken);
                     }
                 }
+
             }
             catch (Exception ex)
             {

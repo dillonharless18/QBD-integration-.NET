@@ -9,3 +9,7 @@ obj/
 
 # Ignore Visual Studio files
 .vs/
+
+*log.txt
+*Log.txt
+oneXerpQB/oneXerpLog.txt
