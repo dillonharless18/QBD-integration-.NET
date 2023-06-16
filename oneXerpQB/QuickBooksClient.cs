@@ -67,7 +67,7 @@ namespace oneXerpQB
 
                 if (response.StatusCode < 0)
                 {
-                    Console.WriteLine($"Error adding Purchase Order: {response.StatusMessage}");
+                    Logger.Log($"Error adding Purchase Order: {response.StatusMessage}");
                     // Throw a QuickBooksErrorException if the status code indicates an error
                     throw new QuickBooksErrorException(response.StatusCode, "An error occurred while creating the Purchase Order in QuickBooks.");
                 }
@@ -78,8 +78,8 @@ namespace oneXerpQB
                 }
                 else
                 {
-                    Console.WriteLine("Purchase Order added successfully.");
-                    Console.WriteLine(responseMsgSet.ResponseList.GetAt(0).ToString());
+                    Logger.Log("Purchase Order added successfully.");
+                    Logger.Log(responseMsgSet.ResponseList.GetAt(0).ToString());
                     result = true;
                 }
             }
@@ -134,7 +134,7 @@ namespace oneXerpQB
 
                 if (response.StatusCode < 0)
                 {
-                    Console.WriteLine($"Error adding Vendor: {response.StatusMessage}");
+                    Logger.Log($"Error adding Vendor: {response.StatusMessage}");
                     // Throw a QuickBooksErrorException if the status code indicates an error
                     throw new QuickBooksErrorException(response.StatusCode, "An error occurred while creating the Vendor in QuickBooks.");
                 }
@@ -145,8 +145,8 @@ namespace oneXerpQB
                 }
                 else
                 {
-                    Console.WriteLine("Vendor added successfully.");
-                    Console.WriteLine(responseMsgSet.ResponseList.GetAt(0).ToString());
+                    Logger.Log("Vendor added successfully.");
+                    Logger.Log(responseMsgSet.ResponseList.GetAt(0).ToString());
                     result = true;
                 }
             }
@@ -200,7 +200,7 @@ namespace oneXerpQB
             }
             catch (Exception e)
             {
-                Console.WriteLine(e.Message);
+                Logger.Log(e.Message);
                 if (sessionBegun)
                 {
                     sessionManager.EndSession();
@@ -337,7 +337,7 @@ namespace oneXerpQB
 
         //        if (response.StatusCode < 0)
         //        {
-        //            Console.WriteLine($"Error adding Item Receipt: {response.StatusMessage}");
+        //            Logger.Log($"Error adding Item Receipt: {response.StatusMessage}");
         //            throw new QuickBooksErrorException(response.StatusCode, "An error occurred while creating the Item Receipt in QuickBooks.");
         //        }
         //        else if (response.StatusCode > 0)
@@ -346,7 +346,7 @@ namespace oneXerpQB
         //        }
         //        else
         //        {
-        //            Console.WriteLine("Item Receipt added successfully.");
+        //            Logger.Log("Item Receipt added successfully.");
         //            result = true;
         //        }
         //    }

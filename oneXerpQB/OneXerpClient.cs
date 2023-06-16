@@ -40,19 +40,19 @@ namespace oneXerpQB
 
             // Return dummy data for now
             return await Task.FromResult(new VendorData(
-                "Vendor 1",
-                "Company 1",
+                "Test Vendor",
+                "Test Vendor",
                 new Address(
                     "123 Street", // Addr1
-                    "Apt 4B",     // Addr2
+                    "PO Box 1234",     // Addr2
                     "",           // Addr3
                     "",           // Addr4
                     "",           // Addr5
-                    "City",       // City
-                    "State",      // State
+                    "Test City",       // City
+                    "Test State",      // State
                     "12345",      // PostalCode
-                    "Country",    // Country
-                    "Note"        // Note
+                    "US",    // Country
+                    "Test notes"        // Note
                 ),
                 "9101234567"      // Phone
             ));

@@ -27,7 +27,7 @@ namespace oneXerpQB
             // Note - Finds the instance role automatically
             var sqsClient = new AmazonSQSClient(Amazon.RegionEndpoint.USEast1);
             // TODO Here we should look up the queue URL from cloudformation output
-            var sqsUrl = "https://sqs.us-east-1.amazonaws.com/your-account-id/your-queue-name"; // TODO make this dynamic
+            var sqsUrl = "https://sqs.us-east-1.amazonaws.com/136559125535/TestQBDEgressQueue"; // TODO make this dynamic
 
             // Read QuickBooks company file path from configuration
             var qbCompanyFilePath = configuration["QuickBooks:CompanyFilePath"];
@@ -54,14 +54,14 @@ namespace oneXerpQB
                     }
                     catch (Exception ex)
                     {
-                        Console.WriteLine($"An error occurred: {ex.Message}. Restarting the background poller...");
+                        Logger.Log($"An error occurred: {ex.Message}. Restarting the background poller...");
                         await poller.Start(cancellationToken);
                     }
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"An error occurred while starting the background poller: {ex.Message}");
+                Logger.Log($"An error occurred while starting the background poller: {ex.Message}");
             }
 
         }
@@ -169,26 +169,26 @@ namespace oneXerpQB
                     
                     case "CREATE_PO":
                         // Perform actions for creating a purchase order
-                        Console.WriteLine("Processing CREATE_PO action...");
+                        Logger.Log("Processing CREATE_PO action...");
                         purchaseOrderData = await _oneXerpClient.getPurchaseOrderData(itemId);
                         isSuccessful = _quickBooksClient.CreatePurchaseOrder(purchaseOrderData);
                         break;
                     case "RECEIVE_PO":
                         // Perform actions for updating a purchase order
-                        Console.WriteLine("Processing UPDATE_PO action... waiting to hear back about this");
+                        Logger.Log("Processing UPDATE_PO action... waiting to hear back about this");
                         //purchaseOrderData = await _oneXerpClient.getPurchaseOrderData(itemId);
                         //isSuccessful = _quickBooksClient.UpdatePurchaseOrder(purchaseOrderData);
                         break;
                     case "CREATE_VENDOR":
                         // Perform actions for adding a vendor
-                        Console.WriteLine("Processing CREATE_VENDOR action...");
+                        Logger.Log("Processing CREATE_VENDOR action...");
                         vendorData = await _oneXerpClient.getVendorData(itemId);
-                        Console.WriteLine($"vendorData: {vendorData}");
+                        Logger.Log($"vendorData: {vendorData}");
                         isSuccessful = _quickBooksClient.CreateVendor(vendorData);
                         break;
                     default:
                         // Handle unrecognized actionType
-                        Console.WriteLine($"Unrecognized actionType: {actionType}");
+                        Logger.Log($"Unrecognized actionType: {actionType}");
                         break;
                 }
 
@@ -204,28 +204,28 @@ namespace oneXerpQB
                 }
                 else
                 {
-                    Console.WriteLine("Purchase order creation failed. The message will not be deleted from the queue.");
+                    Logger.Log("Purchase order creation failed. The message will not be deleted from the queue.");
                 }
             }
             catch (QuickBooksErrorException ex)
             {
                 // Handle QuickBooksErrorException here
-                Console.WriteLine("QuickBooks ERROR occurred while processing message: " + ex.Message);
+                Logger.Log("QuickBooks ERROR occurred while processing message: " + ex.Message);
             }
             catch (QuickBooksWarningException ex)
             {
                 // Handle QuickBooksWarningException here
-                Console.WriteLine("QuickBooks WARNING occurred while processing message: " + ex.Message);
+                Logger.Log("QuickBooks WARNING occurred while processing message: " + ex.Message);
             }
             catch (System.IO.FileNotFoundException ex)
             {
                 // Handle QuickBooksWarningException here
-                Console.WriteLine("FileNotFoundException thrown while processing message: " + ex.Message);
+                Logger.Log("FileNotFoundException thrown while processing message: " + ex.Message);
             }
             catch (Exception ex)
             {
                 // Handle any other exceptions here
-                Console.WriteLine("Error occurred while processing message: " + ex.Message);
+                Logger.Log("Error occurred while processing message: " + ex.Message);
             }
         }
 
