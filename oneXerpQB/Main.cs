@@ -172,21 +172,19 @@ namespace oneXerpQB
                 {
                     
                     case "CREATE_PO":
-                        // Perform actions for creating a purchase order
                         Logger.Log("Processing CREATE_PO action...");
-                        purchaseOrderData = await _oneXerpClient.getPurchaseOrderData(itemId);
+                        purchaseOrderData = (PurchaseOrderData)parsedMessage;
                         isSuccessful = _quickBooksClient.CreatePurchaseOrder(purchaseOrderData);
+                        // TODO: We know we need to receieve the PO in many cases. Determine when to receieve the PO and implement the logic.
                         break;
                     case "RECEIVE_PO":
-                        // Perform actions for updating a purchase order
                         Logger.Log("Processing UPDATE_PO action... waiting to hear back about this");
-                        //purchaseOrderData = await _oneXerpClient.getPurchaseOrderData(itemId);
-                        //isSuccessful = _quickBooksClient.UpdatePurchaseOrder(purchaseOrderData);
+                        // purchaseOrderData = (PurchaseOrderData)parsedMessage;
+                        // isSuccessful = _quickBooksClient.UpdatePurchaseOrder(purchaseOrderData);
                         break;
                     case "CREATE_VENDOR":
-                        // Perform actions for adding a vendor
                         Logger.Log("Processing CREATE_VENDOR action...");
-                        vendorData = await _oneXerpClient.getVendorData(itemId);
+                        vendorData = (VendorData)parsedMessage;
                         Logger.Log($"vendorData: {vendorData}");
                         isSuccessful = _quickBooksClient.CreateVendor(vendorData);
                         break;

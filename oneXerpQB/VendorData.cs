@@ -3,7 +3,7 @@ using QBFC16Lib;
 
 namespace oneXerpQB
 {
-    public class VendorData
+    public class VendorData : OneXerpQBMessage
     {
         public string Name { get; set; }
         public string CompanyName { get; set; }

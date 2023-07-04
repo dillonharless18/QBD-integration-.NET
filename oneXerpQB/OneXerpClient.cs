@@ -17,9 +17,9 @@ namespace oneXerpQB
 
     public class OneXerpClient : IOneXerpClient
     {
+        // TODO: Determine if we need this since we decided to send the entire payload to the queue.
         public async Task<PurchaseOrderData> getPurchaseOrderData(string itemId)
         {
-            // TODO: Replace this with actual call to the API
 
             // Return dummy data for now
             return await Task.FromResult(new PurchaseOrderData
@@ -34,27 +34,27 @@ namespace oneXerpQB
             });
         }
 
+        // TODO: Determine if we need this since we decided to send the entire payload to the queue.
         public async Task<VendorData> getVendorData(string itemId)
         {
-            // TODO: Replace this with actual call to the API
 
             // Return dummy data for now
             return await Task.FromResult(new VendorData(
                 "Test Vendor",
                 "Test Vendor",
                 new Address(
-                    "123 Street", // Addr1
+                    "123 Street",      // Addr1
                     "PO Box 1234",     // Addr2
-                    "",           // Addr3
-                    "",           // Addr4
-                    "",           // Addr5
+                    "",                // Addr3
+                    "",                // Addr4
+                    "",                // Addr5
                     "Test City",       // City
                     "Test State",      // State
-                    "12345",      // PostalCode
-                    "US",    // Country
-                    "Test notes"        // Note
+                    "12345",           // PostalCode
+                    "US",              // Country
+                    "Test notes"       // Note
                 ),
-                "9101234567"      // Phone
+                "9101234567"           // Phone
             ));
         }
 
