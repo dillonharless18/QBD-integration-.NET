@@ -216,6 +216,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Address.cs" />
+    <Compile Include="CustomUtility.cs" />
     <Compile Include="ItemReceiptData.cs" />
     <Compile Include="ItemReceiptLineData.cs" />
     <Compile Include="Logger.cs" />

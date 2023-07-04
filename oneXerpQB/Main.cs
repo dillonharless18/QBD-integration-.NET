@@ -10,6 +10,7 @@ using System.IO;
 using Microsoft.Extensions.Configuration;
 using System.Linq;
 using Amazon.Runtime.Internal.Util;
+using InvoiceAdd;
 
 namespace oneXerpQB
 {
@@ -162,7 +163,8 @@ namespace oneXerpQB
             try
             {
                 OneXerpQBMessage parsedMessage = ParseMessage(message.Body);
-                bool isSuccessful = false;
+                bool isSuccessful  = false;
+                bool shouldReceive = false;
                 string itemId = parsedMessage.itemId;
                 string actionType = parsedMessage.actionType.ToUpperInvariant();
                 PurchaseOrderData purchaseOrderData;
@@ -170,15 +172,25 @@ namespace oneXerpQB
 
                 switch (actionType)
                 {
-                    
+
                     case "CREATE_PO":
                         Logger.Log("Processing CREATE_PO action...");
                         purchaseOrderData = (PurchaseOrderData)parsedMessage;
                         isSuccessful = _quickBooksClient.CreatePurchaseOrder(purchaseOrderData);
-                        // TODO: We know we need to receieve the PO in many cases. Determine when to receieve the PO and implement the logic.
                         break;
-                    case "RECEIVE_PO":
-                        Logger.Log("Processing UPDATE_PO action... waiting to hear back about this");
+                    case "CREATE_PO_AND_RECEIVE_PO_IN_FULL":
+                        Logger.Log("Processing CREATE_PO_AND_RECEIVE_PO_IN_FULL action...");
+                        purchaseOrderData = (PurchaseOrderData)parsedMessage;
+                        isSuccessful = _quickBooksClient.CreatePurchaseOrder(purchaseOrderData);
+                        if (!isSuccessful) break;
+                        isSuccessful = _quickBooksClient.MarkPurchaseOrderReceived(itemId); // TODO: Determine what Id I need to send. Is it the TxnId? How to get that?
+                        break;
+                    case "RECEIVE_PO_IN_FULL":
+                        Logger.Log("Processing RECEIVE_PO_IN_FULL action...");
+                        isSuccessful = _quickBooksClient.MarkPurchaseOrderReceived(itemId); // TODO: Determine what Id I need to send. Is it the TxnId? How to get that?
+                        break;
+                    case "RECEIVE_PO_LINE_ITEMS":
+                        Logger.Log("Processing RECEIVE_PO_LINE_ITEMS action... waiting to hear back about this");
                         // purchaseOrderData = (PurchaseOrderData)parsedMessage;
                         // isSuccessful = _quickBooksClient.UpdatePurchaseOrder(purchaseOrderData);
                         break;

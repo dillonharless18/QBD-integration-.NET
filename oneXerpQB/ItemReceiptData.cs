@@ -12,9 +12,12 @@ namespace oneXerpQB
         public DateTime ReceiptDate { get; set; }
         public List<ItemReceiptLineData> Items { get; set; }
 
-        public ItemReceiptData()
+        public ItemReceiptData( string accountName, DateTime receiptDate, List<ItemReceiptLineData> items )
         {
-            Items = new List<ItemReceiptLineData>();
+            AccountName = accountName;
+            ReceiptDate = receiptDate;
+            Items = items;
+
         }
     }
 }
