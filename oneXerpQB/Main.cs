@@ -164,7 +164,6 @@ namespace oneXerpQB
             {
                 OneXerpQBMessage parsedMessage = ParseMessage(message.Body);
                 bool isSuccessful  = false;
-                bool shouldReceive = false;
                 string itemId = parsedMessage.itemId;
                 string actionType = parsedMessage.actionType.ToUpperInvariant();
                 PurchaseOrderData purchaseOrderData;
@@ -183,16 +182,19 @@ namespace oneXerpQB
                         purchaseOrderData = (PurchaseOrderData)parsedMessage;
                         isSuccessful = _quickBooksClient.CreatePurchaseOrder(purchaseOrderData);
                         if (!isSuccessful) break;
-                        isSuccessful = _quickBooksClient.MarkPurchaseOrderReceived(itemId); // TODO: Determine what Id I need to send. Is it the TxnId? How to get that?
+                        isSuccessful = _quickBooksClient.ReceivePurchaseOrder(itemId); // TODO: Determine what Id I need to send. Is it the TxnId? How to get that?
                         break;
-                    case "RECEIVE_PO_IN_FULL":
+                    case "RECEIEVE_PO":
                         Logger.Log("Processing RECEIVE_PO_IN_FULL action...");
-                        isSuccessful = _quickBooksClient.MarkPurchaseOrderReceived(itemId); // TODO: Determine what Id I need to send. Is it the TxnId? How to get that?
+                        isSuccessful = _quickBooksClient.ReceivePurchaseOrder(itemId); // TODO: Determine what Id I need to send. Is it the TxnId? How to get that?
                         break;
                     case "RECEIVE_PO_LINE_ITEMS":
+                        // TODO determine the message format for this
                         Logger.Log("Processing RECEIVE_PO_LINE_ITEMS action... waiting to hear back about this");
-                        // purchaseOrderData = (PurchaseOrderData)parsedMessage;
-                        // isSuccessful = _quickBooksClient.UpdatePurchaseOrder(purchaseOrderData);
+                        // TODO Determine what the function should except. It's built, but not optimal really.
+                        //purchaseOrderData = (PurchaseOrderData)parsedMessage;
+                        //lineItems = GetLineitemsFromPurchaseOrder(purchaseOrderData);
+                        //isSuccessful = _quickBooksClient.ReceivePurchaseOrderLineItems(purchaseOrderData);
                         break;
                     case "CREATE_VENDOR":
                         Logger.Log("Processing CREATE_VENDOR action...");

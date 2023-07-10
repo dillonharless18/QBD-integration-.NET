@@ -27,6 +27,16 @@ namespace oneXerpQB.Tests
             return ShouldCreatePurchaseOrderSucceed;
         }
 
+        public bool ReceivePurchaseOrder(string purchaseOrderId)
+        {
+            return ShouldCreatePurchaseOrderSucceed;
+        }
+
+        public bool ReceivePurchaseOrderLineItems(string purchaseOrderId, List<PurchaseOrderItem> lineItems)
+        {
+            return ShouldCreatePurchaseOrderSucceed;
+        }
+
         public bool CreateVendor(VendorData vendorData)
         {
             // Add the purchase order data to the list if the creation should succeed
@@ -38,6 +48,7 @@ namespace oneXerpQB.Tests
             // Return the value of ShouldCreatePurchaseOrderSucceed
             return ShouldCreateVendorSucceed;
         }
+
     }
 
 }

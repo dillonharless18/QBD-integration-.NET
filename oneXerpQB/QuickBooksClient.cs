@@ -13,9 +13,9 @@ namespace oneXerpQB
         bool CreatePurchaseOrder(PurchaseOrderData purchaseOrderData);
         bool CreateVendor(VendorData vendorData);
 
-        bool MarkPurchaseOrderReceived(string purchaseOrderId);
+        bool ReceivePurchaseOrder(string purchaseOrderId);
 
-        //bool CreateItemReceipt(string poId);
+        bool ReceivePurchaseOrderLineItems(string purchaseOrderId, List<PurchaseOrderItem> lineItems);
 
     }
 
@@ -30,6 +30,14 @@ namespace oneXerpQB
             _qbApplicationName = "oneXerpQB";
         }
 
+
+        ///////////////////////////
+        //  BEGIN Purchase Order //
+        ///////////////////////////
+        
+        /**
+         * Creates a purchase order.
+         */ 
         public bool CreatePurchaseOrder(PurchaseOrderData poData) // TODO update this to return a more robust message other than a bool
         {
             bool result = false;
@@ -94,6 +102,241 @@ namespace oneXerpQB
 
             return result;
         }
+
+
+        /** Fully receive a PO. 
+         * 
+         * In QuickBooks, in order to mark a PO "Fully Received", you create an item receipt and link it 
+         * to the PO. All of the items in that PO will be automatically added to the receipt and fully received. 
+         The PO then derives its status from the amount of each line item received.*/
+        public bool ReceivePurchaseOrder(string poId)
+        {
+            bool result = false;
+            QBSessionManager sessionManager = new QBSessionManager();
+
+            try
+            {
+
+                // Start a session
+                sessionManager.OpenConnection("", _qbApplicationName);
+                sessionManager.BeginSession("", ENOpenMode.omDontCare);
+
+                // Create a new ItemReceipt using QBFC
+                IMsgSetRequest requestMsgSet = sessionManager.CreateMsgSetRequest("US", 16, 0);
+                IItemReceiptAdd itemReceiptAdd = requestMsgSet.AppendItemReceiptAddRq();
+
+                // TODO Figure out if we need to pull in the AccountName and ReceiptDate from oneXerp.
+                //itemReceiptAdd.APAccountRef.FullName.SetValue(itemReceiptData.AccountName);
+                //itemReceiptAdd.TxnDate.SetValue(itemReceiptData.ReceiptDate);
+
+                // Link the ItemReceipt to the PurchaseOrder
+                itemReceiptAdd.LinkToTxnIDList.Add(poId);
+
+                // Send the request to QuickBooks
+                IMsgSetResponse responseMsgSet = sessionManager.DoRequests(requestMsgSet);
+
+                // Handle the response
+                IResponse response = responseMsgSet.ResponseList.GetAt(0);
+                if (response.StatusCode == 0)
+                {
+                    result = true;
+                    // ItemReceipt created successfully
+                }
+                else
+                {
+                    // Error handling
+                    string errorCode = response.StatusCode.ToString();
+                    string errorMessage = response.StatusMessage;
+                    // Handle the error
+                }
+            }
+            catch (Exception ex)
+            {
+                // Exception handling
+                // Handle the exception
+                Logger.Log($"There was an Exception in MarkPurchaseOrderReceived: {ex.Message}");
+                
+            }
+            finally
+            {
+                // Close the session manager
+                if (sessionManager != null)
+                {
+                    sessionManager.EndSession();
+                    sessionManager.CloseConnection();
+                }
+            }
+
+            return result;
+        }
+
+        /**
+         * Partially recieve a purchase order by creating a receipt 
+         * against a PO, updating the ReceivedQuantity on the line items.
+         * 
+         * It first retrieves the existing ReceievedQuantity on the list items and adds the appropriate amount
+         * from the payload.
+         */ 
+        public bool ReceivePurchaseOrderLineItems(string purchaseOrderId, List<PurchaseOrderItem> lineItems)
+        {
+            QBSessionManager sessionManager = new QBSessionManager();
+
+            try
+            {
+                // Start a session
+                sessionManager.OpenConnection("", _qbApplicationName);
+                sessionManager.BeginSession("", ENOpenMode.omDontCare);
+
+                // Get the existing received quantities for the line items
+                string[] lineItemIds = lineItems.Select(li => li.LineId).ToArray();
+                Dictionary<string, double> existingReceivedQuantities = GetReceivedQuantitiesForLineItems(purchaseOrderId, lineItemIds);
+
+                // Create a new ItemReceiptAdd request
+                IMsgSetRequest requestMsgSet = sessionManager.CreateMsgSetRequest("US", 16, 0);
+                IItemReceiptAdd itemReceiptAdd = requestMsgSet.AppendItemReceiptAddRq();
+
+                // Link the ItemReceipt to the PurchaseOrder
+                itemReceiptAdd.LinkToTxnIDList.Add(purchaseOrderId);
+
+                // Update the line items
+                foreach (var lineItem in lineItems)
+                {
+                    IItemLineAdd itemLineAdd = itemReceiptAdd.ORItemLineAddList.Append().ItemLineAdd;
+                    itemLineAdd.LinkToTxn.TxnID.SetValue(purchaseOrderId);
+                    itemLineAdd.LinkToTxn.TxnLineID.SetValue(lineItem.LineId);
+
+                    // Determine the new received quantity based on existing and incoming quantities
+                    double existingReceivedQuantity = existingReceivedQuantities.ContainsKey(lineItem.LineId) ? existingReceivedQuantities[lineItem.LineId] : 0;
+                    double newReceivedQuantity = existingReceivedQuantity + lineItem.ReceivedQuantity;
+                    itemLineAdd.Quantity.SetValue(newReceivedQuantity);
+                }
+
+                // Send the request to QuickBooks
+                IMsgSetResponse responseMsgSet = sessionManager.DoRequests(requestMsgSet);
+
+                // Handle the response
+                IResponse response = responseMsgSet.ResponseList.GetAt(0);
+                if (response.StatusCode == 0)
+                {
+                    // Purchase Order line items updated successfully
+                    return true;
+                }
+                else
+                {
+                    // Error handling
+                    string errorCode = response.StatusCode.ToString();
+                    string errorMessage = response.StatusMessage;
+                    // Handle the error
+                }
+            }
+            catch (Exception ex)
+            {
+                // Exception handling
+                // Handle the exception
+                Logger.Log($"There was an Exception in ReceivePurchaseOrderLineItems: {ex.Message}");
+            }
+            finally
+            {
+                // Close the session manager
+                if (sessionManager != null)
+                {
+                    sessionManager.EndSession();
+                    sessionManager.CloseConnection();
+                }
+            }
+
+            return false;
+        }
+
+
+        /**
+         * Takes a PO Id and a list of line item Ids on that PO and returns a dictionary
+         * where the keys are the line item Ids and the values are the ReceievedQuantity of each item.
+         * Used when receiving items. Get the existing values and then add the received amount appropriately (or
+         * maybe subtract/custom reporting in the future).
+         */
+        private Dictionary<string, double> GetReceivedQuantitiesForLineItems(string purchaseOrderId, string[] lineItemIds)
+        {
+            Dictionary<string, double> receivedQuantities = new Dictionary<string, double>();
+            QBSessionManager sessionManager = new QBSessionManager();
+
+            try
+            {
+                // Start a session
+                sessionManager.OpenConnection("", _qbApplicationName);
+                sessionManager.BeginSession("", ENOpenMode.omDontCare);
+
+                // Create a new PurchaseOrderQuery request
+                IMsgSetRequest requestMsgSet = sessionManager.CreateMsgSetRequest("US", 16, 0);
+                IPurchaseOrderQuery purchaseOrderQuery = requestMsgSet.AppendPurchaseOrderQueryRq();
+                purchaseOrderQuery.ORTxnQuery.TxnIDList.Add(purchaseOrderId);
+
+                // Send the request to QuickBooks
+                IMsgSetResponse responseMsgSet = sessionManager.DoRequests(requestMsgSet);
+
+                // Handle the response
+                IResponse response = responseMsgSet.ResponseList.GetAt(0);
+                if (response.StatusCode == 0)
+                {
+                    IPurchaseOrderRetList purchaseOrderRetList = response.Detail as IPurchaseOrderRetList;
+                    if (purchaseOrderRetList != null && purchaseOrderRetList.Count > 0)
+                    {
+                        IPurchaseOrderRet purchaseOrderRet = purchaseOrderRetList.GetAt(0);
+                        if (purchaseOrderRet != null)
+                        {
+                            IORPurchaseOrderLineRetList purchaseOrderLineRetList = purchaseOrderRet.ORPurchaseOrderLineRetList;
+                            if (purchaseOrderLineRetList != null)
+                            {
+                                for (int i = 0; i < purchaseOrderLineRetList.Count; i++)
+                                {
+                                    IORPurchaseOrderLineRet purchaseOrderLineRet = purchaseOrderLineRetList.GetAt(i);
+                                    string lineItemId = purchaseOrderLineRet.PurchaseOrderLineRet.TxnLineID.GetValue();
+                                    if (lineItemIds.Contains(lineItemId))
+                                    {
+                                        double receivedQuantity = purchaseOrderLineRet.PurchaseOrderLineRet.ReceivedQuantity.GetValue();
+                                        receivedQuantities[lineItemId] = receivedQuantity;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    // Error handling
+                    string errorCode = response.StatusCode.ToString();
+                    string errorMessage = response.StatusMessage;
+                    // Handle the error
+                }
+            }
+            catch (Exception ex)
+            {
+                // Exception handling
+                // Handle the exception
+                Logger.Log($"There was an Exception in GetReceivedQuantitiesForLineItems: {ex.Message}");
+            }
+            finally
+            {
+                // Close the session manager
+                if (sessionManager != null)
+                {
+                    sessionManager.EndSession();
+                    sessionManager.CloseConnection();
+                }
+            }
+
+            return receivedQuantities;
+        }
+
+
+        /////////////////////////
+        //  END Purchase Order //
+        /////////////////////////
+
+
+        ////////////////////
+        //  BEGIN Vendor  //
+        ////////////////////
 
         public bool CreateVendor(VendorData vendorData)
         {
@@ -163,7 +406,7 @@ namespace oneXerpQB
         }
 
         // NOTE: You can only delete List Type items when quickbooks is opened in single user mode
-        public void DeleteVendor(string vendorId) 
+        public void DeleteVendor(string vendorId)
         {
             // TODO - determine if we should accept name and do this by name
             bool sessionBegun = false;
@@ -298,266 +541,9 @@ namespace oneXerpQB
             }
         }
 
-        /** In QuickBooks, in order to mark a PO "Fully Received", you create an item receipt and link it 
-         * to the PO. All of the items in that PO will be automatically added to the receipt and fully received. 
-         The PO then derives its status from the amount of each line item received.*/
-        public bool MarkPurchaseOrderReceived(ItemReceiptData itemReceiptData, string poId)
-        {
-            bool result = false;
-            QBSessionManager sessionManager = new QBSessionManager();
+        //////////////////
+        //  END Vendor  //
+        //////////////////
 
-            try
-            {
-
-                // Start a session
-                sessionManager.OpenConnection("", _qbApplicationName);
-                sessionManager.BeginSession("", ENOpenMode.omDontCare);
-
-                // Create a new ItemReceipt using QBFC
-                IMsgSetRequest requestMsgSet = sessionManager.CreateMsgSetRequest("US", 16, 0);
-                IItemReceiptAdd itemReceiptAdd = requestMsgSet.AppendItemReceiptAddRq();
-                itemReceiptAdd.APAccountRef.FullName.SetValue(itemReceiptData.AccountName);
-                itemReceiptAdd.TxnDate.SetValue(itemReceiptData.ReceiptDate);
-
-                // Link the ItemReceipt to the PurchaseOrder
-                itemReceiptAdd.LinkToTxnIDList.Add(poId);
-
-                // Send the request to QuickBooks
-                IMsgSetResponse responseMsgSet = sessionManager.DoRequests(requestMsgSet);
-
-                // Handle the response
-                IResponse response = responseMsgSet.ResponseList.GetAt(0);
-                if (response.StatusCode == 0)
-                {
-                    result = true;
-                    // ItemReceipt created successfully
-                }
-                else
-                {
-                    // Error handling
-                    string errorCode = response.StatusCode.ToString();
-                    string errorMessage = response.StatusMessage;
-                    // Handle the error
-                }
-            }
-            catch (Exception ex)
-            {
-                // Exception handling
-                // Handle the exception
-            }
-            finally
-            {
-                // Close the session manager
-                if (sessionManager != null)
-                {
-                    sessionManager.EndSession();
-                    sessionManager.CloseConnection();
-                }
-            }
-
-            return result;
-        }
-
-        public bool UpdatePurchaseOrderLineItems(string purchaseOrderId, List<PurchaseOrderItem> lineItems)
-        {
-            QBSessionManager sessionManager = new QBSessionManager();
-
-            try
-            {
-                // Start a session
-                sessionManager.OpenConnection("", _qbApplicationName);
-                sessionManager.BeginSession("", ENOpenMode.omDontCare);
-
-                // Create a new ItemReceiptAdd request
-                IMsgSetRequest requestMsgSet = sessionManager.CreateMsgSetRequest("US", 16, 0);
-                IItemReceiptAdd itemReceiptAdd = requestMsgSet.AppendItemReceiptAddRq();
-
-                // Link the ItemReceipt to the PurchaseOrder
-                itemReceiptAdd.LinkToTxnIDList.Add(purchaseOrderId);
-
-                // Update the line items
-                foreach (var lineItem in lineItems)
-                {
-                    IItemLineAdd itemLineAdd = itemReceiptAdd.ORItemLineAddList.Append().ItemLineAdd;
-                    itemLineAdd.LinkToTxn.TxnID.SetValue(purchaseOrderId);
-                    itemLineAdd.LinkToTxn.TxnLineID.SetValue(lineItem.LineId);
-                    itemLineAdd.Quantity.SetValue(lineItem.QuantityReceived);
-                }
-
-                // Send the request to QuickBooks
-                IMsgSetResponse responseMsgSet = sessionManager.DoRequests(requestMsgSet);
-
-                // Handle the response
-                IResponse response = responseMsgSet.ResponseList.GetAt(0);
-                if (response.StatusCode == 0)
-                {
-                    // Purchase Order line items updated successfully
-                    return true;
-                }
-                else
-                {
-                    // Error handling
-                    string errorCode = response.StatusCode.ToString();
-                    string errorMessage = response.StatusMessage;
-                    // Handle the error
-                }
-            }
-            catch (Exception ex)
-            {
-                // Exception handling
-                // Handle the exception
-            }
-            finally
-            {
-                // Close the session manager
-                if (sessionManager != null)
-                {
-                    sessionManager.EndSession();
-                    sessionManager.CloseConnection();
-                }
-            }
-
-            return false;
-        }
-
-        public List<PurchaseOrderItem> GetPurchaseOrderLineItems(string purchaseOrderId)
-        {
-            List<PurchaseOrderItem> lineItems = new List<PurchaseOrderItem>();
-            QBSessionManager sessionManager = new QBSessionManager();
-
-            try
-            {
-                // Start a session
-                sessionManager.OpenConnection("", _qbApplicationName);
-                sessionManager.BeginSession("", ENOpenMode.omDontCare);
-
-                // Create a new ItemReceiptAdd request
-                IMsgSetRequest requestMsgSet = sessionManager.CreateMsgSetRequest("US", 16, 0);
-                IPurchaseOrderQuery purchaseOrderQuery = requestMsgSet.AppendPurchaseOrderQueryRq();
-                purchaseOrderQuery.ORTxnQuery.TxnIDList.Add(purchaseOrderId);
-
-                // Send the request to QuickBooks
-                IMsgSetResponse responseMsgSet = sessionManager.DoRequests(requestMsgSet);
-
-                // Handle the response
-                IResponse response = responseMsgSet.ResponseList.GetAt(0);
-                if (response.StatusCode == 0)
-                {
-                    IPurchaseOrderRetList purchaseOrderRet = response.Detail as IPurchaseOrderRetList; 
-                    if (purchaseOrderRet != null)
-                    {
-                        IPurchaseOrderLineRetList purchaseOrderLineRetList = purchaseOrderRet.ORPurchaseOrderLineRetList;
-
-                        // Iterate over the line items and retrieve the necessary information
-                        for (int i = 0; i < purchaseOrderLineRetList.Count; i++)
-                        {
-                            IPurchaseOrderLineRet purchaseOrderLineRet = purchaseOrderLineRetList.GetAt(i);
-                            string lineId = purchaseOrderLineRet.TxnLineID.GetValue();
-                            string itemName = purchaseOrderLineRet.ItemRef.FullName.GetValue();
-                            decimal quantityReceived = purchaseOrderLineRet.QuantityReceived.GetValue();
-
-                            // Create a PurchaseOrderItem object and add it to the list
-                            PurchaseOrderItem lineItem = new PurchaseOrderItem
-                            {
-                                LineId = lineId,
-                                ItemName = itemName,
-                                QuantityReceived = quantityReceived
-                            };
-                            lineItems.Add(lineItem);
-                        }
-                    }
-                }
-                else
-                {
-                    // Error handling
-                    string errorCode = response.StatusCode.ToString();
-                    string errorMessage = response.StatusMessage;
-                    // Handle the error
-                }
-            }
-            catch (Exception ex)
-            {
-                // Exception handling
-                // Handle the exception
-            }
-            finally
-            {
-                // Close the session manager
-                if (sessionManager != null)
-                {
-                    sessionManager.EndSession();
-                    sessionManager.CloseConnection();
-                }
-            }
-
-            return lineItems;
-        }
-
-
-
-
-
-
-        // TODO - After hearing from Eric about whether we can just recieve the entire PO or close it, finish implementing this
-        //public bool CreateItemReceipt(ItemReceiptData itemReceiptData, string poId)
-        //{
-        //    bool result = false;
-        //    QBSessionManager sessionManager = new QBSessionManager();
-
-        //    try
-        //    {
-        //        if (!System.IO.File.Exists(_qbCompanyFilePath))
-        //        {
-        //            throw new System.IO.FileNotFoundException($"QuickBooks company file not found at path: {_qbCompanyFilePath}");
-        //        }
-
-        //        sessionManager.OpenConnection("", _qbApplicationName);
-        //        sessionManager.BeginSession(_qbCompanyFilePath, ENOpenMode.omDontCare);
-
-        //        // Create a new ItemReceipt using QBFC
-        //        IMsgSetRequest requestMsgSet = sessionManager.CreateMsgSetRequest("US", 16, 0);
-        //        IItemReceiptAdd itemReceiptAdd = requestMsgSet.AppendItemReceiptAddRq();
-        //        itemReceiptAdd.APAccountRef.FullName.SetValue(itemReceiptData.AccountName);
-        //        itemReceiptAdd.TxnDate.SetValue(itemReceiptData.ReceiptDate);
-
-        //        // Link the ItemReceipt to the PurchaseOrder
-        //        itemReceiptAdd.LinkToTxnID.SetValue(poId);
-
-        //        // Add items to the ItemReceipt
-        //        foreach (var item in itemReceiptData.Items)
-        //        {
-        //            IItemReceiptLineAdd lineAdd = itemReceiptAdd.ORItemLineAddList.Append().ItemLineAdd;
-        //            lineAdd.ItemRef.FullName.SetValue(item.ItemName);
-        //            lineAdd.Quantity.SetValue(item.Quantity);
-        //            lineAdd.Amount.SetValue(item.Amount);
-        //        }
-
-        //        // Send the request to QuickBooks
-        //        IMsgSetResponse responseMsgSet = sessionManager.DoRequests(requestMsgSet);
-        //        IResponse response = responseMsgSet.ResponseList.GetAt(0);
-
-        //        if (response.StatusCode < 0)
-        //        {
-        //            Logger.Log($"Error adding Item Receipt: {response.StatusMessage}");
-        //            throw new QuickBooksErrorException(response.StatusCode, "An error occurred while creating the Item Receipt in QuickBooks.");
-        //        }
-        //        else if (response.StatusCode > 0)
-        //        {
-        //            throw new QuickBooksWarningException(response.StatusCode, "A warning occurred while creating the Item Receipt in QuickBooks.");
-        //        }
-        //        else
-        //        {
-        //            Logger.Log("Item Receipt added successfully.");
-        //            result = true;
-        //        }
-        //    }
-        //    finally
-        //    {
-        //        sessionManager.EndSession();
-        //        sessionManager.CloseConnection();
-        //    }
-
-        //    return result;
-        //}
     }
 }
