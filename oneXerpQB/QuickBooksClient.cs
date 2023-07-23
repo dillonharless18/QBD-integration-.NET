@@ -40,7 +40,7 @@ namespace oneXerpQB
          */ 
         public IResponse CreatePurchaseOrder(PurchaseOrder poData) // TODO update this to return a more robust message other than a bool
         {
-            bool result = false;
+
             QBSessionManager sessionManager = new QBSessionManager();
             IResponse response;
 
@@ -60,6 +60,16 @@ namespace oneXerpQB
                 IPurchaseOrderAdd purchaseOrderAdd = requestMsgSet.AppendPurchaseOrderAddRq();
                 purchaseOrderAdd.VendorRef.FullName.SetValue(poData.VendorName);
                 purchaseOrderAdd.TxnDate.SetValue(poData.OrderDate);
+
+                // Check and Add New Items if they do not exist
+                var newItemResponses = AddNewItems(sessionManager, poData.Items);
+                foreach (var newItemResponse in newItemResponses)
+                {
+                    if (newItemResponse.StatusCode != 0)
+                    {
+                        Logger.Log($"Error adding Item: {newItemResponse.StatusMessage}");
+                    }
+                }
 
                 // Add items to the PurchaseOrder
                 foreach (var item in poData.Items)
@@ -337,6 +347,8 @@ namespace oneXerpQB
                     Logger.Log("Item with name " + item.ItemName + " already exists. Skipping the creation of this item");
                     continue;
                 }
+
+                Logger.Log("Item with name " + item.ItemName + " does not exist. Creating it now.");
 
                 IMsgSetRequest requestMsgSet = sessionManager.CreateMsgSetRequest("US", 16, 0);
                 IItemInventoryAdd itemInventoryAddRq = requestMsgSet.AppendItemInventoryAddRq();
