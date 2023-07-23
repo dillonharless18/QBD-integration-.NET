@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace oneXerpQB
 {
-    public class PurchaseOrder : OneXerpQBMessage
+    public class PurchaseOrder : OneXerpObject
     {
         public string VendorName { get; set; }
         public DateTime OrderDate { get; set; }

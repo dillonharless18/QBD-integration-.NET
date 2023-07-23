@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace oneXerpQB
 {
-    public class PurchaseOrderLineItem
+    public class PurchaseOrderLineItem : OneXerpObject
     {
         public string ItemName { get; set; }
         public int Quantity { get; set; }

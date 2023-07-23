@@ -162,14 +162,14 @@ namespace oneXerpQB
         {
             try
             {
-                OneXerpQBMessage parsedMessage = ParseMessage(message.Body);
+                IngressMessage parsedMessage = ParseMessage(message.Body);
                 //bool isSuccessful = false;
                 IResponse response;
                 EgressMessage egressMessage;
                 Dictionary<string, string> poMap     = new Dictionary<string, string>(); // Maps PO Ids from oneXerp to the TxnIds assigned by QB
                 Dictionary<string, string> vendorMap = new Dictionary<string, string>(); // Maps Vendor Ids from oneXerp to the ListIds assigned by QB
                 Dictionary<string, string> receiptMap = new Dictionary<string, string>(); // Maps Receipt Ids from oneXerp to the TxnIds assigned by QB
-                string itemId = parsedMessage.itemId;
+                string oneXerpId = parsedMessage.body.oneXerpId;
                 string actionType = parsedMessage.actionType.ToUpperInvariant();
                 PurchaseOrder purchaseOrderData;
                 Vendor vendorData;
@@ -179,12 +179,12 @@ namespace oneXerpQB
 
                     case "CREATE_PO":
                         Logger.Log("Processing CREATE_PO action...");
-                        purchaseOrderData = (PurchaseOrder)parsedMessage;
+                        purchaseOrderData = (PurchaseOrder)parsedMessage.body;
                         response = _quickBooksClient.CreatePurchaseOrder(purchaseOrderData);
                         break;
                     case "CREATE_PO_AND_RECEIVE_PO_IN_FULL":
                         Logger.Log("Processing CREATE_PO_AND_RECEIVE_PO_IN_FULL action...");
-                        purchaseOrderData = (PurchaseOrder)parsedMessage;
+                        purchaseOrderData = (PurchaseOrder)parsedMessage.body;
                         
                         // Create the PO in QuickBooks 
                         response = _quickBooksClient.CreatePurchaseOrder(purchaseOrderData);
@@ -195,6 +195,7 @@ namespace oneXerpQB
                         string poTxnId = poRet.TxnID.ToString();   // This is the id that quickbooks creates
 
                         response = _quickBooksClient.ReceivePurchaseOrder(poTxnId);
+                        // BIG TODO
                         if (response.StatusCode != 0) break; // TODO if there is an error here, we created the PO but didn't receieve... handle it appropriately
 
                         // Get the details from the response for Receipt
@@ -205,7 +206,7 @@ namespace oneXerpQB
                         Dictionary<string, string> itemIdsMap = new Dictionary<string, string>();
 
                         // Build the egress message with details of what occurred and mapping ids
-                        egressMessage = new EgressMessageCreateAndReceivePOInFull(purchaseOrderData.itemId, poTxnId, itemReceiptTxnId, itemIdsMap);
+                        egressMessage = new EgressMessageCreateAndReceivePOInFull(purchaseOrderData.oneXerpId, poTxnId, itemReceiptTxnId, itemIdsMap);
                        
 
                         break;
@@ -223,7 +224,7 @@ namespace oneXerpQB
                         break;
                     case "CREATE_VENDOR":
                         Logger.Log("Processing CREATE_VENDOR action...");
-                        vendorData = (Vendor)parsedMessage;
+                        vendorData = (Vendor)parsedMessage.body;
                         Logger.Log($"vendorData: {vendorData}");
                         isSuccessful = _quickBooksClient.CreateVendor(vendorData);
                         break;
@@ -321,21 +322,21 @@ namespace oneXerpQB
         /*
          * Args:
          *     messageBody: JSON string {
-         *         itemId: string (PO/Vendor id in oneXerp database)
+         *         oneXerpId: string (PO/Vendor id in oneXerp database)
          *         actionType: string ("CREATE_VENDOR" | "CREATE_PO" | "RECEIVE_PO")
          *     }
          */
-        internal OneXerpQBMessage ParseMessage(string messageBody)
+        internal IngressMessage ParseMessage(string messageBody)
         {
            
-            var messageData = JsonConvert.DeserializeObject<OneXerpQBMessage>(messageBody);
+            var messageData = JsonConvert.DeserializeObject<IngressMessage>(messageBody);
 
             if (!IsValidActionType(messageData.actionType))
             {
                 throw new ArgumentException($"Invalid actionType value from queue. Action type found: {messageData.actionType}");
             }
 
-            if (string.IsNullOrEmpty(messageData.itemId))
+            if (string.IsNullOrEmpty(messageData.oneXerpId))
             {
                 throw new ArgumentException($"Invalid itemId value from queue. Action type found: {messageData.actionType}");
             }
