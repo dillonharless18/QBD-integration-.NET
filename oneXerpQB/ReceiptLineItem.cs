@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace oneXerpQB
 {
-    public class ItemReceiptLineData
+    public class ReceiptLineItem
     {
         public string ItemName { get; set; }
         public int Quantity { get; set; }

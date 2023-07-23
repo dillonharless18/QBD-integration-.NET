@@ -3,14 +3,14 @@ using QBFC16Lib;
 
 namespace oneXerpQB
 {
-    public class VendorData : OneXerpQBMessage
+    public class Vendor : OneXerpQBMessage
     {
         public string Name { get; set; }
         public string CompanyName { get; set; }
         public Address VendorAddress { get; set; }
         public string Phone { get; set; } 
 
-        public VendorData(string name, string companyName, Address vendorAddress, string phone)
+        public Vendor(string name, string companyName, Address vendorAddress, string phone)
         {
             if (string.IsNullOrWhiteSpace(name))
             {

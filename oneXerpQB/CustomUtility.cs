@@ -10,7 +10,7 @@ namespace InvoiceAdd
     public class CustomUtility
     {
         // TODO: Figure out when POs should be received and implement that logic here
-        public static bool CheckIfPOShouldBeReceived(PurchaseOrderData purchaseOrder)
+        public static bool CheckIfPOShouldBeReceived(PurchaseOrder purchaseOrder)
         {
             return true;
         }

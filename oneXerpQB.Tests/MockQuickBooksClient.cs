@@ -8,14 +8,14 @@ namespace oneXerpQB.Tests
 {
     public class MockQuickBooksClient : IQuickBooksClient
     {
-        public List<PurchaseOrderData> CreatedPurchaseOrders { get; } = new List<PurchaseOrderData>();
-        public List<VendorData> CreatedVendors { get; } = new List<VendorData>();
+        public List<PurchaseOrder> CreatedPurchaseOrders { get; } = new List<PurchaseOrder>();
+        public List<Vendor> CreatedVendors { get; } = new List<Vendor>();
 
         // Add this property to control the behavior of CreatePurchaseOrder
         public bool ShouldCreatePurchaseOrderSucceed { get; set; } = true;
         public bool ShouldCreateVendorSucceed { get; set; } = true;
 
-        public bool CreatePurchaseOrder(PurchaseOrderData purchaseOrderData)
+        public bool CreatePurchaseOrder(PurchaseOrder purchaseOrderData)
         {
             // Add the purchase order data to the list if the creation should succeed
             if (ShouldCreatePurchaseOrderSucceed)
@@ -32,12 +32,12 @@ namespace oneXerpQB.Tests
             return ShouldCreatePurchaseOrderSucceed;
         }
 
-        public bool ReceivePurchaseOrderLineItems(string purchaseOrderId, List<PurchaseOrderItem> lineItems)
+        public bool ReceivePurchaseOrderLineItems(string purchaseOrderId, List<PurchaseOrderLineItem> lineItems)
         {
             return ShouldCreatePurchaseOrderSucceed;
         }
 
-        public bool CreateVendor(VendorData vendorData)
+        public bool CreateVendor(Vendor vendorData)
         {
             // Add the purchase order data to the list if the creation should succeed
             if (ShouldCreateVendorSucceed)

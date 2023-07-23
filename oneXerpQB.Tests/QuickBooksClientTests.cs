@@ -15,13 +15,13 @@ namespace oneXerpQB.Tests
             var mockQuickBooksClient = new MockQuickBooksClient();
             mockQuickBooksClient.ShouldCreatePurchaseOrderSucceed = false;
 
-            var purchaseOrderData = new PurchaseOrderData
+            var purchaseOrderData = new PurchaseOrder
             {
                 VendorName = "Test Vendor",
                 OrderDate = new System.DateTime(2023, 03, 17),
-                Items = new List<PurchaseOrderItem>
+                Items = new List<PurchaseOrderLineItem>
                 {
-                    new PurchaseOrderItem  { ItemName = "Test Item", Quantity = 5, Rate = 10.0 }
+                    new PurchaseOrderLineItem  { ItemName = "Test Item", Quantity = 5, Rate = 10.0 }
                 }
             };
 

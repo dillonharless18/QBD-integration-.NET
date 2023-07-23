@@ -6,13 +6,13 @@ using System.Threading.Tasks;
 
 namespace oneXerpQB
 {
-    public class ItemReceiptData
+    public class Receipt
     {
         public string AccountName { get; set; }
         public DateTime ReceiptDate { get; set; }
-        public List<ItemReceiptLineData> Items { get; set; }
+        public List<ReceiptLineItem> Items { get; set; }
 
-        public ItemReceiptData( string accountName, DateTime receiptDate, List<ItemReceiptLineData> items )
+        public Receipt( string accountName, DateTime receiptDate, List<ReceiptLineItem> items )
         {
             AccountName = accountName;
             ReceiptDate = receiptDate;

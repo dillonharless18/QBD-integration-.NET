@@ -10,36 +10,36 @@ namespace oneXerpQB
 
     public interface IOneXerpClient
     {
-        Task<PurchaseOrderData> getPurchaseOrderData(string itemId);
-        Task<VendorData> getVendorData(string itemId);
+        Task<PurchaseOrder> getPurchaseOrderData(string itemId);
+        Task<Vendor> getVendorData(string itemId);
 
     }
 
     public class OneXerpClient : IOneXerpClient
     {
         // TODO: Determine if we need this since we decided to send the entire payload to the queue.
-        public async Task<PurchaseOrderData> getPurchaseOrderData(string itemId)
+        public async Task<PurchaseOrder> getPurchaseOrderData(string itemId)
         {
 
             // Return dummy data for now
-            return await Task.FromResult(new PurchaseOrderData
+            return await Task.FromResult(new PurchaseOrder
             {
                 VendorName = "Vendor 1",
                 OrderDate = DateTime.Now,
-                Items = new List<PurchaseOrderItem>
+                Items = new List<PurchaseOrderLineItem>
                     {
-                        new PurchaseOrderItem { ItemName = "Item 1", Quantity = 10, Rate = 100.0 },
-                        new PurchaseOrderItem { ItemName = "Item 2", Quantity = 5, Rate = 50.0 }
+                        new PurchaseOrderLineItem { ItemName = "Item 1", Quantity = 10, Rate = 100.0 },
+                        new PurchaseOrderLineItem { ItemName = "Item 2", Quantity = 5, Rate = 50.0 }
                     }
             });
         }
 
         // TODO: Determine if we need this since we decided to send the entire payload to the queue.
-        public async Task<VendorData> getVendorData(string itemId)
+        public async Task<Vendor> getVendorData(string itemId)
         {
 
             // Return dummy data for now
-            return await Task.FromResult(new VendorData(
+            return await Task.FromResult(new Vendor(
                 "Test Vendor",
                 "Test Vendor",
                 new Address(

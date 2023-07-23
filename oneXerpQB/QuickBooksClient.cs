@@ -10,12 +10,12 @@ namespace oneXerpQB
 {
     public interface IQuickBooksClient
     {
-        IResponse CreatePurchaseOrder(PurchaseOrderData purchaseOrderData);
-        IResponse CreateVendor(VendorData vendorData);
+        IResponse CreatePurchaseOrder(PurchaseOrder purchaseOrderData);
+        IResponse CreateVendor(Vendor vendorData);
 
         IResponse ReceivePurchaseOrder(string purchaseOrderId);
 
-        IResponse ReceivePurchaseOrderLineItems(string purchaseOrderId, List<PurchaseOrderItem> lineItems);
+        IResponse ReceivePurchaseOrderLineItems(string purchaseOrderId, List<PurchaseOrderLineItem> lineItems);
 
     }
 
@@ -38,7 +38,7 @@ namespace oneXerpQB
         /**
          * Creates a purchase order.
          */ 
-        public IResponse CreatePurchaseOrder(PurchaseOrderData poData) // TODO update this to return a more robust message other than a bool
+        public IResponse CreatePurchaseOrder(PurchaseOrder poData) // TODO update this to return a more robust message other than a bool
         {
             bool result = false;
             QBSessionManager sessionManager = new QBSessionManager();
@@ -176,7 +176,7 @@ namespace oneXerpQB
          * It first retrieves the existing ReceievedQuantity on the list items and adds the appropriate amount
          * from the payload.
          */ 
-        public IResponse ReceivePurchaseOrderLineItems(string purchaseOrderId, List<PurchaseOrderItem> lineItems)
+        public IResponse ReceivePurchaseOrderLineItems(string purchaseOrderId, List<PurchaseOrderLineItem> lineItems)
         {
             QBSessionManager sessionManager = new QBSessionManager();
             IResponse response;
@@ -336,7 +336,7 @@ namespace oneXerpQB
         //  BEGIN Vendor  //
         ////////////////////
 
-        public IResponse CreateVendor(VendorData vendorData)
+        public IResponse CreateVendor(Vendor vendorData)
         {
             IResponse response;
             QBSessionManager sessionManager = new QBSessionManager();

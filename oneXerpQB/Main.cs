@@ -165,37 +165,49 @@ namespace oneXerpQB
                 OneXerpQBMessage parsedMessage = ParseMessage(message.Body);
                 //bool isSuccessful = false;
                 IResponse response;
+                EgressMessage egressMessage;
                 Dictionary<string, string> poMap     = new Dictionary<string, string>(); // Maps PO Ids from oneXerp to the TxnIds assigned by QB
                 Dictionary<string, string> vendorMap = new Dictionary<string, string>(); // Maps Vendor Ids from oneXerp to the ListIds assigned by QB
                 Dictionary<string, string> receiptMap = new Dictionary<string, string>(); // Maps Receipt Ids from oneXerp to the TxnIds assigned by QB
                 string itemId = parsedMessage.itemId;
                 string actionType = parsedMessage.actionType.ToUpperInvariant();
-                PurchaseOrderData purchaseOrderData;
-                VendorData vendorData;
+                PurchaseOrder purchaseOrderData;
+                Vendor vendorData;
 
                 switch (actionType)
                 {
 
                     case "CREATE_PO":
                         Logger.Log("Processing CREATE_PO action...");
-                        purchaseOrderData = (PurchaseOrderData)parsedMessage;
+                        purchaseOrderData = (PurchaseOrder)parsedMessage;
                         response = _quickBooksClient.CreatePurchaseOrder(purchaseOrderData);
                         break;
                     case "CREATE_PO_AND_RECEIVE_PO_IN_FULL":
                         Logger.Log("Processing CREATE_PO_AND_RECEIVE_PO_IN_FULL action...");
-                        purchaseOrderData = (PurchaseOrderData)parsedMessage;
+                        purchaseOrderData = (PurchaseOrder)parsedMessage;
                         
                         // Create the PO in QuickBooks 
                         response = _quickBooksClient.CreatePurchaseOrder(purchaseOrderData);
                         if (response.StatusCode != 0) break;
 
-                        // Get the details from the response
+                        // Get the details from the response for PO
                         IPurchaseOrderRet poRet = (IPurchaseOrderRet)response.Detail;
-                        string poTxnId = poRet.TxnID.ToString(); // This is the id that quickbooks creates
-                        poMap[purchaseOrderData.itemId] = poTxnId; // Map the PO id from oneXerp to the id created by quickbooks
+                        string poTxnId = poRet.TxnID.ToString();   // This is the id that quickbooks creates
 
+                        response = _quickBooksClient.ReceivePurchaseOrder(poTxnId);
+                        if (response.StatusCode != 0) break; // TODO if there is an error here, we created the PO but didn't receieve... handle it appropriately
 
-                        response = _quickBooksClient.ReceivePurchaseOrder(poTxnId); // TODO: Determine what Id I need to send. Is it the TxnId? How to get that?
+                        // Get the details from the response for Receipt
+                        IItemReceiptRet itemReceiptRet = (IItemReceiptRet)response.Detail;
+                        string itemReceiptTxnId = itemReceiptRet.TxnID.ToString();   // This is the id that quickbooks creates
+
+                        // TODO Walk through the response and create a map of item from oneXerp Ids -> quickbooks Ids
+                        Dictionary<string, string> itemIdsMap = new Dictionary<string, string>();
+
+                        // Build the egress message with details of what occurred and mapping ids
+                        egressMessage = new EgressMessageCreateAndReceivePOInFull(purchaseOrderData.itemId, poTxnId, itemReceiptTxnId, itemIdsMap);
+                       
+
                         break;
                     case "RECEIEVE_PO":
                         Logger.Log("Processing RECEIVE_PO_IN_FULL action...");
@@ -211,7 +223,7 @@ namespace oneXerpQB
                         break;
                     case "CREATE_VENDOR":
                         Logger.Log("Processing CREATE_VENDOR action...");
-                        vendorData = (VendorData)parsedMessage;
+                        vendorData = (Vendor)parsedMessage;
                         Logger.Log($"vendorData: {vendorData}");
                         isSuccessful = _quickBooksClient.CreateVendor(vendorData);
                         break;

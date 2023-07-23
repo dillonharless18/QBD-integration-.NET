@@ -22,13 +22,13 @@ namespace oneXerpQB.Tests
                 .Build();
             var qbCompanyFilePath = configuration["QuickBooks:CompanyFilePath"];
 
-            var purchaseOrderData = new PurchaseOrderData
+            var purchaseOrderData = new PurchaseOrder
             {
                 VendorName = "401K Administrator",
                 OrderDate = DateTime.Now,
-                Items = new System.Collections.Generic.List<PurchaseOrderItem>
+                Items = new System.Collections.Generic.List<PurchaseOrderLineItem>
                 {
-                    new PurchaseOrderItem
+                    new PurchaseOrderLineItem
                     {
                         ItemName = "Installation Labor",
                         Quantity = 5,
@@ -73,7 +73,7 @@ namespace oneXerpQB.Tests
                 // ... any additional fields your Address might have ...
             };
 
-            var vendorData = new VendorData(
+            var vendorData = new Vendor(
                 _vendorName,
                 _vendorName,
                 vendorAddress,

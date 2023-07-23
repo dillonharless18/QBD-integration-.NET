@@ -217,14 +217,17 @@
   <ItemGroup>
     <Compile Include="Address.cs" />
     <Compile Include="CustomUtility.cs" />
-    <Compile Include="ItemReceiptData.cs" />
-    <Compile Include="ItemReceiptLineData.cs" />
+    <Compile Include="EgressMessage.cs" />
+    <Compile Include="EgressMessageCreatePOAndReceivePOInFull.cs" />
+    <Compile Include="Receipt.cs" />
+    <Compile Include="ReceiptLineItem.cs" />
     <Compile Include="Logger.cs" />
     <Compile Include="OneXerpClient.cs" />
     <Compile Include="OneXerpQBMessage.cs" />
-    <Compile Include="PurchaseOrderData.cs" />
-    <Compile Include="PurchaseOrderItem.cs" />
-    <Compile Include="VendorData.cs" />
+    <Compile Include="PurchaseOrder.cs" />
+    <Compile Include="PurchaseOrderLineItem.cs" />
+    <Compile Include="Transaction.cs" />
+    <Compile Include="Vendor.cs" />
     <Compile Include="AssemblyInfo.cs">
       <SubType>Code</SubType>
     </Compile>
