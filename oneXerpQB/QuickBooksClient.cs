@@ -326,6 +326,64 @@ namespace oneXerpQB
             return receivedQuantities;
         }
 
+        public List<IResponse> AddNewItems(IQBSessionManager sessionManager, List<PurchaseOrderLineItem> items)
+        {
+            List<IResponse> responses = new List<IResponse>();
+
+            foreach (var item in items)
+            {
+                if (DoesItemExist(sessionManager, item.ItemName))
+                {
+                    Logger.Log("Item with name " + item.ItemName + " already exists. Skipping the creation of this item");
+                    continue;
+                }
+
+                IMsgSetRequest requestMsgSet = sessionManager.CreateMsgSetRequest("US", 16, 0);
+                IItemInventoryAdd itemInventoryAddRq = requestMsgSet.AppendItemInventoryAddRq();
+
+                // Set the name of the item
+                itemInventoryAddRq.Name.SetValue(item.ItemName);
+
+                // Set the sales description and sales price of the item
+                itemInventoryAddRq.SalesDesc.SetValue(item.ItemName);
+                itemInventoryAddRq.SalesPrice.SetValue(item.Rate);
+
+                // Optionally, we could also set the asset account for the inventory item.
+                // We would need to get the ListID of the account, and use it to set the value
+                // For example:
+                // itemInventoryAddRq.AssetAccountRef.ListID.SetValue("8000003D-1556629351");
+
+                // Set the purchase cost of the item
+                itemInventoryAddRq.PurchaseCost.SetValue(item.Rate);
+
+                // Make sure the item is active
+                itemInventoryAddRq.IsActive.SetValue(true);
+
+                // Perform the request and capture the response
+                var response = sessionManager.DoRequests(requestMsgSet).ResponseList.GetAt(0);
+                responses.Add(response);
+            }
+
+            return responses;
+        }
+
+
+        public bool DoesItemExist(IQBSessionManager sessionManager, string itemName)
+        {
+            IMsgSetRequest requestMsgSet = sessionManager.CreateMsgSetRequest("US", 13, 0);
+            IItemQuery itemQueryRq = requestMsgSet.AppendItemQueryRq();
+            itemQueryRq.ORListQuery.FullNameList.Add(itemName);
+
+            IMsgSetResponse responseSet = sessionManager.DoRequests(requestMsgSet);
+            IResponse response = responseSet.ResponseList.GetAt(0);
+
+            // If the returned count is greater than zero, the item exists
+            return response.retCount > 0;
+        }
+
+
+
+
 
         /////////////////////////
         //  END Purchase Order //

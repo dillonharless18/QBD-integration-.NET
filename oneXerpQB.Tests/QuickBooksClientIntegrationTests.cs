@@ -4,6 +4,7 @@ using System;
 using Microsoft.Extensions.Configuration;
 using System.IO;
 
+
 namespace oneXerpQB.Tests
 {
     public class QuickBooksClientIntegrationTests
@@ -40,7 +41,7 @@ namespace oneXerpQB.Tests
             var quickBooksClient = new QuickBooksClient(qbCompanyFilePath);
 
             // Act
-            bool result = quickBooksClient.CreatePurchaseOrder(purchaseOrderData);
+            PurchaseOrderAddRet result = quickBooksClient.CreatePurchaseOrder(purchaseOrderData);
 
             // Assert
             Assert.True(result);

@@ -201,33 +201,11 @@ namespace oneXerpQB
                         IItemReceiptRet itemReceiptRet = (IItemReceiptRet)response.Detail;
                         string itemReceiptTxnId = itemReceiptRet.TxnID.ToString();   // This is the id that quickbooks creates
 
-                        // TODO Walk through the response and create a map of item from oneXerp Ids -> quickbooks Ids
-                        Dictionary<string, string> itemIdsMap = new Dictionary<string, string>();
-
-                        // Assuming that poRet is the PurchaseOrderRet object from the QuickBooks response
-                        if (poRet != null && poRet.ORPurchaseOrderLineRetList != null)
-                        {
-                            int count = poRet.ORPurchaseOrderLineRetList.Count;
-                            for (int i = 0; i < count; i++)
-                            {
-                                IORPurchaseOrderLineRet poLine = poRet.ORPurchaseOrderLineRetList.GetAt(i);
-
-                                // Get the ItemRef which has the Item Name and ListId
-                                if (poLine.PurchaseOrderLineRet != null)
-                                {
-                                    string quickbooksItemName = poLine.PurchaseOrderLineRet.ItemRef.FullName.GetValue();
-                                    string quickbooksListId = poLine.PurchaseOrderLineRet.ItemRef.ListID.GetValue();
-
-                                    var correspondingLineItem = purchaseOrderData.Items.FirstOrDefault(x => x.ItemName == quickbooksItemName);
-
-                                    if (correspondingLineItem != null)
-                                    {
-                                        // Map the OneXerp ItemName to QuickBooks ListId
-                                        itemIdsMap.Add(correspondingLineItem.ItemName, quickbooksListId);
-                                    }
-                                }
-                            }
-                        }
+                        // TODO - See if we need to map the ListIds of the PuchaseOrderLineItems to the purchase order line item Ids from oneXerp.
+                        //          In quickbooks the line items don't get their own TxnId, but they do have an ItemRef that points to the ListIds of the corresponding item.
+                        //          Therefore the items have to exist in Quickbooks
+                        // Walk through the response and create a map of item from oneXerp Ids -> quickbooks Ids
+                        // Dictionary<string, string> itemIdsMap = new Dictionary<string, string>();
 
                         // Build the egress message with details of what occurred and mapping ids
                         egressMessage = new EgressMessageCreateAndReceivePOInFull(purchaseOrderData.oneXerpId, poTxnId, itemReceiptTxnId, itemIdsMap);
@@ -357,6 +335,16 @@ namespace oneXerpQB
         }
 
         private bool IsValidActionType(string actionType)
+        {
+            string[] validActionTypes = { "CREATE_VENDOR", "CREATE_PO", "RECEIVE_PO" };
+            return validActionTypes.Contains(actionType, StringComparer.OrdinalIgnoreCase);
+        }
+        
+        /** 
+         * Returns a map of ids from items in oneXerp to their corresponding
+         */
+
+        private bool createItemIdsMap(string actionType)
         {
             string[] validActionTypes = { "CREATE_VENDOR", "CREATE_PO", "RECEIVE_PO" };
             return validActionTypes.Contains(actionType, StringComparer.OrdinalIgnoreCase);
