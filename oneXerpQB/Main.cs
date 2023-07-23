@@ -204,6 +204,31 @@ namespace oneXerpQB
                         // TODO Walk through the response and create a map of item from oneXerp Ids -> quickbooks Ids
                         Dictionary<string, string> itemIdsMap = new Dictionary<string, string>();
 
+                        // Assuming that poRet is the PurchaseOrderRet object from the QuickBooks response
+                        if (poRet != null && poRet.ORPurchaseOrderLineRetList != null)
+                        {
+                            int count = poRet.ORPurchaseOrderLineRetList.Count;
+                            for (int i = 0; i < count; i++)
+                            {
+                                IORPurchaseOrderLineRet poLine = poRet.ORPurchaseOrderLineRetList.GetAt(i);
+
+                                // Get the ItemRef which has the Item Name and ListId
+                                if (poLine.PurchaseOrderLineRet != null)
+                                {
+                                    string quickbooksItemName = poLine.PurchaseOrderLineRet.ItemRef.FullName.GetValue();
+                                    string quickbooksListId = poLine.PurchaseOrderLineRet.ItemRef.ListID.GetValue();
+
+                                    var correspondingLineItem = purchaseOrderData.Items.FirstOrDefault(x => x.ItemName == quickbooksItemName);
+
+                                    if (correspondingLineItem != null)
+                                    {
+                                        // Map the OneXerp ItemName to QuickBooks ListId
+                                        itemIdsMap.Add(correspondingLineItem.ItemName, quickbooksListId);
+                                    }
+                                }
+                            }
+                        }
+
                         // Build the egress message with details of what occurred and mapping ids
                         egressMessage = new EgressMessageCreateAndReceivePOInFull(purchaseOrderData.oneXerpId, poTxnId, itemReceiptTxnId, itemIdsMap);
                         break;
