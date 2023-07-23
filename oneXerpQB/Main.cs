@@ -163,7 +163,11 @@ namespace oneXerpQB
             try
             {
                 OneXerpQBMessage parsedMessage = ParseMessage(message.Body);
-                bool isSuccessful  = false;
+                //bool isSuccessful = false;
+                IResponse response;
+                Dictionary<string, string> poMap     = new Dictionary<string, string>(); // Maps PO Ids from oneXerp to the TxnIds assigned by QB
+                Dictionary<string, string> vendorMap = new Dictionary<string, string>(); // Maps Vendor Ids from oneXerp to the ListIds assigned by QB
+                Dictionary<string, string> receiptMap = new Dictionary<string, string>(); // Maps Receipt Ids from oneXerp to the TxnIds assigned by QB
                 string itemId = parsedMessage.itemId;
                 string actionType = parsedMessage.actionType.ToUpperInvariant();
                 PurchaseOrderData purchaseOrderData;
@@ -175,14 +179,23 @@ namespace oneXerpQB
                     case "CREATE_PO":
                         Logger.Log("Processing CREATE_PO action...");
                         purchaseOrderData = (PurchaseOrderData)parsedMessage;
-                        isSuccessful = _quickBooksClient.CreatePurchaseOrder(purchaseOrderData);
+                        response = _quickBooksClient.CreatePurchaseOrder(purchaseOrderData);
                         break;
                     case "CREATE_PO_AND_RECEIVE_PO_IN_FULL":
                         Logger.Log("Processing CREATE_PO_AND_RECEIVE_PO_IN_FULL action...");
                         purchaseOrderData = (PurchaseOrderData)parsedMessage;
-                        isSuccessful = _quickBooksClient.CreatePurchaseOrder(purchaseOrderData);
-                        if (!isSuccessful) break;
-                        isSuccessful = _quickBooksClient.ReceivePurchaseOrder(itemId); // TODO: Determine what Id I need to send. Is it the TxnId? How to get that?
+                        
+                        // Create the PO in QuickBooks 
+                        response = _quickBooksClient.CreatePurchaseOrder(purchaseOrderData);
+                        if (response.StatusCode != 0) break;
+
+                        // Get the details from the response
+                        IPurchaseOrderRet poRet = (IPurchaseOrderRet)response.Detail;
+                        string poTxnId = poRet.TxnID.ToString(); // This is the id that quickbooks creates
+                        poMap[purchaseOrderData.itemId] = poTxnId; // Map the PO id from oneXerp to the id created by quickbooks
+
+
+                        response = _quickBooksClient.ReceivePurchaseOrder(poTxnId); // TODO: Determine what Id I need to send. Is it the TxnId? How to get that?
                         break;
                     case "RECEIEVE_PO":
                         Logger.Log("Processing RECEIVE_PO_IN_FULL action...");
@@ -204,12 +217,13 @@ namespace oneXerpQB
                         break;
                     default:
                         // Handle unrecognized actionType
+
                         Logger.Log($"Unrecognized actionType: {actionType}");
                         break;
                 }
 
                 
-                if (isSuccessful)
+                if (response.StatusCode != 0)
                 {
                     // Delete the message from the queue after it's processed
                     await _sqsClient.DeleteMessageAsync(new DeleteMessageRequest

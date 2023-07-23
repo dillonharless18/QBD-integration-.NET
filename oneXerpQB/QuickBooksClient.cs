@@ -10,12 +10,12 @@ namespace oneXerpQB
 {
     public interface IQuickBooksClient
     {
-        bool CreatePurchaseOrder(PurchaseOrderData purchaseOrderData);
-        bool CreateVendor(VendorData vendorData);
+        IResponse CreatePurchaseOrder(PurchaseOrderData purchaseOrderData);
+        IResponse CreateVendor(VendorData vendorData);
 
-        bool ReceivePurchaseOrder(string purchaseOrderId);
+        IResponse ReceivePurchaseOrder(string purchaseOrderId);
 
-        bool ReceivePurchaseOrderLineItems(string purchaseOrderId, List<PurchaseOrderItem> lineItems);
+        IResponse ReceivePurchaseOrderLineItems(string purchaseOrderId, List<PurchaseOrderItem> lineItems);
 
     }
 
@@ -38,10 +38,11 @@ namespace oneXerpQB
         /**
          * Creates a purchase order.
          */ 
-        public bool CreatePurchaseOrder(PurchaseOrderData poData) // TODO update this to return a more robust message other than a bool
+        public IResponse CreatePurchaseOrder(PurchaseOrderData poData) // TODO update this to return a more robust message other than a bool
         {
             bool result = false;
             QBSessionManager sessionManager = new QBSessionManager();
+            IResponse response;
 
             try
             {
@@ -73,7 +74,7 @@ namespace oneXerpQB
 
                 // Send the request to QuickBooks
                 IMsgSetResponse responseMsgSet = sessionManager.DoRequests(requestMsgSet);
-                IResponse response = responseMsgSet.ResponseList.GetAt(0);
+                response = responseMsgSet.ResponseList.GetAt(0);
 
                 if (response.StatusCode < 0)
                 {
@@ -100,7 +101,7 @@ namespace oneXerpQB
                 sessionManager.CloseConnection();
             }
 
-            return result;
+            return response;
         }
 
 
@@ -109,10 +110,11 @@ namespace oneXerpQB
          * In QuickBooks, in order to mark a PO "Fully Received", you create an item receipt and link it 
          * to the PO. All of the items in that PO will be automatically added to the receipt and fully received. 
          The PO then derives its status from the amount of each line item received.*/
-        public bool ReceivePurchaseOrder(string poId)
+        public IResponse ReceivePurchaseOrder(string poId)
         {
             bool result = false;
             QBSessionManager sessionManager = new QBSessionManager();
+            IResponse response;
 
             try
             {
@@ -136,26 +138,23 @@ namespace oneXerpQB
                 IMsgSetResponse responseMsgSet = sessionManager.DoRequests(requestMsgSet);
 
                 // Handle the response
-                IResponse response = responseMsgSet.ResponseList.GetAt(0);
-                if (response.StatusCode == 0)
+                response = responseMsgSet.ResponseList.GetAt(0);
+                if (response.StatusCode < 0)
                 {
-                    result = true;
-                    // ItemReceipt created successfully
+                    Logger.Log($"Error receiving PO: {response.StatusMessage}");
+                    // Throw a QuickBooksErrorException if the status code indicates an error
+                    throw new QuickBooksErrorException(response.StatusCode, "An error occurred while receiving PO in QuickBooks.");
                 }
-                else
+                else if (response.StatusCode > 0)
                 {
-                    // Error handling
-                    string errorCode = response.StatusCode.ToString();
-                    string errorMessage = response.StatusMessage;
-                    // Handle the error
+                    // Throw a QuickBooksWarningException if the status code indicates a warning
+                    throw new QuickBooksWarningException(response.StatusCode, "A warning occurred while receiving PO in QuickBooks.");
                 }
-            }
-            catch (Exception ex)
-            {
-                // Exception handling
-                // Handle the exception
-                Logger.Log($"There was an Exception in MarkPurchaseOrderReceived: {ex.Message}");
-                
+                else if (response.Detail == null)
+                {
+                    // Throw a QuickBooksWarningException if the status code indicates a warning
+                    throw new QuickBooksErrorException(response.StatusCode, "A warning occurred while receiving PO in QuickBooks. Quickbooks did not throw an error, but the detail of the response was empty.");
+                }
             }
             finally
             {
@@ -167,7 +166,7 @@ namespace oneXerpQB
                 }
             }
 
-            return result;
+            return response;
         }
 
         /**
@@ -177,9 +176,10 @@ namespace oneXerpQB
          * It first retrieves the existing ReceievedQuantity on the list items and adds the appropriate amount
          * from the payload.
          */ 
-        public bool ReceivePurchaseOrderLineItems(string purchaseOrderId, List<PurchaseOrderItem> lineItems)
+        public IResponse ReceivePurchaseOrderLineItems(string purchaseOrderId, List<PurchaseOrderItem> lineItems)
         {
             QBSessionManager sessionManager = new QBSessionManager();
+            IResponse response;
 
             try
             {
@@ -215,25 +215,23 @@ namespace oneXerpQB
                 IMsgSetResponse responseMsgSet = sessionManager.DoRequests(requestMsgSet);
 
                 // Handle the response
-                IResponse response = responseMsgSet.ResponseList.GetAt(0);
-                if (response.StatusCode == 0)
+                response = responseMsgSet.ResponseList.GetAt(0);
+                if (response.StatusCode < 0)
                 {
-                    // Purchase Order line items updated successfully
-                    return true;
+                    Logger.Log($"Error receiving PO LineItems: {response.StatusMessage}");
+                    // Throw a QuickBooksErrorException if the status code indicates an error
+                    throw new QuickBooksErrorException(response.StatusCode, "An error occurred while receiving PO LineItems in QuickBooks.");
                 }
-                else
+                else if (response.StatusCode > 0)
                 {
-                    // Error handling
-                    string errorCode = response.StatusCode.ToString();
-                    string errorMessage = response.StatusMessage;
-                    // Handle the error
+                    // Throw a QuickBooksWarningException if the status code indicates a warning
+                    throw new QuickBooksWarningException(response.StatusCode, "A warning occurred while receiving PO LineItems in QuickBooks.");
                 }
-            }
-            catch (Exception ex)
-            {
-                // Exception handling
-                // Handle the exception
-                Logger.Log($"There was an Exception in ReceivePurchaseOrderLineItems: {ex.Message}");
+                else if (response.Detail == null)
+                {
+                    // Throw a QuickBooksWarningException if the status code indicates a warning
+                    throw new QuickBooksErrorException(response.StatusCode, "A warning occurred while receiving PO LineItems in QuickBooks. Quickbooks did not throw an error, but the detail of the response was empty.");
+                }
             }
             finally
             {
@@ -245,7 +243,7 @@ namespace oneXerpQB
                 }
             }
 
-            return false;
+            return response;
         }
 
 
@@ -338,9 +336,9 @@ namespace oneXerpQB
         //  BEGIN Vendor  //
         ////////////////////
 
-        public bool CreateVendor(VendorData vendorData)
+        public IResponse CreateVendor(VendorData vendorData)
         {
-            bool result = false;
+            IResponse response;
             QBSessionManager sessionManager = new QBSessionManager();
 
             try
@@ -375,7 +373,7 @@ namespace oneXerpQB
 
                 // Send the request to QuickBooks
                 IMsgSetResponse responseMsgSet = sessionManager.DoRequests(requestMsgSet);
-                IResponse response = responseMsgSet.ResponseList.GetAt(0);
+                response = responseMsgSet.ResponseList.GetAt(0);
 
                 if (response.StatusCode < 0)
                 {
@@ -388,12 +386,17 @@ namespace oneXerpQB
                     // Throw a QuickBooksWarningException if the status code indicates a warning
                     throw new QuickBooksWarningException(response.StatusCode, "A warning occurred while creating the Vendor in QuickBooks.");
                 }
+                else if (response.Detail == null)
+                {
+                    // Throw a QuickBooksWarningException if the status code indicates a warning
+                    throw new QuickBooksErrorException(response.StatusCode, "A warning occurred while creating the Vendor in QuickBooks. Quickbooks did not throw an error, but the detail of the response was empty.");
+                }
                 else
                 {
                     Logger.Log("Vendor added successfully.");
                     Logger.Log(responseMsgSet.ResponseList.GetAt(0).ToString());
-                    result = true;
                 }
+
             }
             finally
             {
@@ -402,7 +405,7 @@ namespace oneXerpQB
                 sessionManager.CloseConnection();
             }
 
-            return result;
+            return response;
         }
 
         // NOTE: You can only delete List Type items when quickbooks is opened in single user mode
