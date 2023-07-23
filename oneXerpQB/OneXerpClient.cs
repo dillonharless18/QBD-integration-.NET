@@ -17,7 +17,8 @@ namespace oneXerpQB
 
     public class OneXerpClient : IOneXerpClient
     {
-        // TODO: Determine if we need this since we decided to send the entire payload to the queue.
+        public string _outgoingMessageQueueUrl { get; set; } // This is oneXerp's "ingress queue" (ingress from oneXerp's perspective - going to oneXerp)
+        
         public async Task<PurchaseOrder> getPurchaseOrderData(string itemId)
         {
 

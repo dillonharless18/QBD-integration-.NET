@@ -28,16 +28,18 @@ namespace oneXerpQB
             // Note - Finds the instance role automatically
             var sqsClient = new AmazonSQSClient(Amazon.RegionEndpoint.USEast1);
             // TODO Here we should look up the queue URL from cloudformation output
-            var sqsUrl = "https://sqs.us-east-1.amazonaws.com/136559125535/TestQBDEgressQueue"; // TODO make this dynamic
+            var incomingMessageQueueUrl = "https://sqs.us-east-1.amazonaws.com/136559125535/development-InfrastructureStack-ExtensibleFinanceModuleQBDInfraEgre-YBZpLaST854p"; // TODO make this dynamic
+            var outgoingMessageQueueUrl = "https://sqs.us-east-1.amazonaws.com/136559125535/development-InfrastructureStack-ExtensibleFinanceModuleQBDInfraIngr-vv40Q77IXJ4O"; // TODO make this dynamic
 
             // Read QuickBooks company file path from configuration
             var qbCompanyFilePath = configuration["QuickBooks:CompanyFilePath"];
             var quickBooksClient = new QuickBooksClient(qbCompanyFilePath);
 
             var oneXerpClient = new OneXerpClient();
+            oneXerpClient._outgoingMessageQueueUrl = outgoingMessageQueueUrl;
 
 
-            var poller = new BackgroundPoller(sqsClient, oneXerpClient, sqsUrl, quickBooksClient, 20000, 1);
+            var poller = new BackgroundPoller(sqsClient, oneXerpClient, incomingMessageQueueUrl, quickBooksClient, 20000, 1);
             try
             {
                 var cancellationToken = CancellationToken.None;
@@ -75,7 +77,7 @@ namespace oneXerpQB
     public class BackgroundPoller
     {
         private readonly AmazonSQSClient _sqsClient;
-        private readonly string _sqsUrl;
+        private readonly string _incomingMessageQueueUrl; // This is oneXerp's "egress queue" (egress from oneXerp's perspective - leaving from oneXerp)
         private bool _running;
         private readonly int _pollingInterval;
         private readonly IQuickBooksClient _quickBooksClient;
@@ -87,10 +89,10 @@ namespace oneXerpQB
         private readonly ILogger _logger;
 
 
-        public BackgroundPoller(AmazonSQSClient sqsClient, IOneXerpClient oneXerpClient, string sqsUrl, IQuickBooksClient quickBooksClient, int pollingInterval = 20000, int maxConcurrency = 1)
+        public BackgroundPoller(AmazonSQSClient sqsClient, IOneXerpClient oneXerpClient, string incomingMessageQueueUrl, IQuickBooksClient quickBooksClient, int pollingInterval = 20000, int maxConcurrency = 1)
         {
             _sqsClient = sqsClient;
-            _sqsUrl = sqsUrl;
+            _incomingMessageQueueUrl = incomingMessageQueueUrl;
             _quickBooksClient = quickBooksClient;
             _running = true;
             _pollingInterval = pollingInterval;
@@ -160,15 +162,11 @@ namespace oneXerpQB
 
         internal async Task ProcessMessage(Message message)
         {
+            IResponse response = null;          // The response received from QuickBooks
+            EgressMessage egressMessage = null; // The message to send back to oneXerp
             try
             {
                 IngressMessage parsedMessage = ParseMessage(message.Body);
-                //bool isSuccessful = false;
-                IResponse response;
-                EgressMessage egressMessage;
-                Dictionary<string, string> poMap     = new Dictionary<string, string>(); // Maps PO Ids from oneXerp to the TxnIds assigned by QB
-                Dictionary<string, string> vendorMap = new Dictionary<string, string>(); // Maps Vendor Ids from oneXerp to the ListIds assigned by QB
-                Dictionary<string, string> receiptMap = new Dictionary<string, string>(); // Maps Receipt Ids from oneXerp to the TxnIds assigned by QB
                 string oneXerpId = parsedMessage.body.oneXerpId;
                 string actionType = parsedMessage.actionType.ToUpperInvariant();
                 PurchaseOrder purchaseOrderData;
@@ -181,6 +179,7 @@ namespace oneXerpQB
                         Logger.Log("Processing CREATE_PO action...");
                         purchaseOrderData = (PurchaseOrder)parsedMessage.body;
                         response = _quickBooksClient.CreatePurchaseOrder(purchaseOrderData);
+                        // TODO egressMessage = null;
                         break;
                     case "CREATE_PO_AND_RECEIVE_PO_IN_FULL":
                         Logger.Log("Processing CREATE_PO_AND_RECEIVE_PO_IN_FULL action...");
@@ -207,47 +206,67 @@ namespace oneXerpQB
 
                         // Build the egress message with details of what occurred and mapping ids
                         egressMessage = new EgressMessageCreateAndReceivePOInFull(purchaseOrderData.oneXerpId, poTxnId, itemReceiptTxnId, itemIdsMap);
-                       
-
                         break;
                     case "RECEIEVE_PO":
                         Logger.Log("Processing RECEIVE_PO_IN_FULL action...");
-                        isSuccessful = _quickBooksClient.ReceivePurchaseOrder(itemId); // TODO: Determine what Id I need to send. Is it the TxnId? How to get that?
+                        response = _quickBooksClient.ReceivePurchaseOrder(oneXerpId);
+                        // TODO egressMessage = null;
                         break;
-                    case "RECEIVE_PO_LINE_ITEMS":
+                    //case "RECEIVE_PO_LINE_ITEMS":
                         // TODO determine the message format for this
-                        Logger.Log("Processing RECEIVE_PO_LINE_ITEMS action... waiting to hear back about this");
+                        //Logger.Log("Processing RECEIVE_PO_LINE_ITEMS action... waiting to hear back about this");
                         // TODO Determine what the function should except. It's built, but not optimal really.
                         //purchaseOrderData = (PurchaseOrderData)parsedMessage;
                         //lineItems = GetLineitemsFromPurchaseOrder(purchaseOrderData);
-                        //isSuccessful = _quickBooksClient.ReceivePurchaseOrderLineItems(purchaseOrderData);
-                        break;
+                        //response = _quickBooksClient.ReceivePurchaseOrderLineItems(purchaseOrderData);
+                        //break;
                     case "CREATE_VENDOR":
                         Logger.Log("Processing CREATE_VENDOR action...");
                         vendorData = (Vendor)parsedMessage.body;
                         Logger.Log($"vendorData: {vendorData}");
-                        isSuccessful = _quickBooksClient.CreateVendor(vendorData);
+                        response = _quickBooksClient.CreateVendor(vendorData);
+                        // TODO egressMessage = null;
                         break;
                     default:
                         // Handle unrecognized actionType
-
                         Logger.Log($"Unrecognized actionType: {actionType}");
                         break;
                 }
 
                 
-                if (response.StatusCode != 0)
+                if (response != null && response.StatusCode != 0)
                 {
-                    // Delete the message from the queue after it's processed
-                    await _sqsClient.DeleteMessageAsync(new DeleteMessageRequest
+                    try
                     {
-                        QueueUrl = _sqsUrl,
-                        ReceiptHandle = message.ReceiptHandle
-                    });
+                        // Delete the message from the queue after it's processed
+                        await _sqsClient.DeleteMessageAsync(new DeleteMessageRequest
+                        {
+                            QueueUrl = _incomingMessageQueueUrl,
+                            ReceiptHandle = message.ReceiptHandle
+                        });
+
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.Log((string)"An error occurred while deleting a message from oneXerp's egress queue that was already processed by quickbooks. Here is the message as it was originally received: ".Concat(parsedMessage.ToString()));
+                        throw ex;
+                    }
+
+                    try
+                    {
+                        // Send the egressMessage to oneXerp
+                        
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.Log((string)"An error occurred while sending a message to oneXerp's ingress queue. Here is the message: ".Concat(egressMessage.ToString()));
+                        throw ex;
+                    }
+
                 }
                 else
                 {
-                    Logger.Log("Purchase order creation failed. The message will not be deleted from the queue.");
+                    Logger.Log("Message failed to process. The message will not be deleted from the queue.");
                 }
             }
             catch (QuickBooksErrorException ex)
@@ -278,7 +297,7 @@ namespace oneXerpQB
             {
                 ReceiveMessageResponse response = await _sqsClient.ReceiveMessageAsync(new ReceiveMessageRequest
                 {
-                    QueueUrl = _sqsUrl,
+                    QueueUrl = _incomingMessageQueueUrl,
                     MaxNumberOfMessages = 1,
                     VisibilityTimeout = 60
                 });
@@ -336,7 +355,7 @@ namespace oneXerpQB
                 throw new ArgumentException($"Invalid actionType value from queue. Action type found: {messageData.actionType}");
             }
 
-            if (string.IsNullOrEmpty(messageData.oneXerpId))
+            if (string.IsNullOrEmpty(messageData.body.oneXerpId))
             {
                 throw new ArgumentException($"Invalid itemId value from queue. Action type found: {messageData.actionType}");
             }
