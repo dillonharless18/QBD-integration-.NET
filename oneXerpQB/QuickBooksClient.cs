@@ -127,7 +127,7 @@ namespace oneXerpQB
                 else if (response.StatusCode > 0)
                 {
                     // Throw a QuickBooksWarningException if the status code indicates a warning
-                    throw new QuickBooksWarningException(response.StatusCode, "A warning occurred while creating the Purchase Order in QuickBooks.");
+                    throw new QuickBooksWarningException(response.StatusCode, "A warning occurred while creating the Purchase Order in QuickBooks. Here is the message: " + response.StatusMessage);
                 }
                 else
                 {
@@ -421,9 +421,19 @@ namespace oneXerpQB
 
             IMsgSetResponse responseSet = sessionManager.DoRequests(requestMsgSet);
             IResponse response = responseSet.ResponseList.GetAt(0);
+            IORItemRetList itemRetList = (IORItemRetList)response.Detail;
 
             // If the returned count is greater than zero, the item exists
-            return response.retCount > 0;
+           if (itemRetList == null || itemRetList.Count == 0)
+            {
+                // No vendor found with the given name
+                return false;
+            }
+            else
+            {
+                // Return the ListID of the first vendor found
+                return true;
+            }
         }
 
 

@@ -32,7 +32,7 @@ namespace oneXerpQB.Tests
                 {
                     new PurchaseOrderLineItem
                     {
-                        ItemName = "Installation Labor",
+                        ItemName = "Nonexistent Item",
                         Quantity = 5,
                         Rate = 10.0
                     }
@@ -85,10 +85,10 @@ namespace oneXerpQB.Tests
             var quickBooksClient = new QuickBooksClient(qbCompanyFilePath);
 
             // Act
-            bool result = quickBooksClient.CreateVendor(vendorData);
+            IResponse result = quickBooksClient.CreateVendor(vendorData);
 
             // Assert
-            Assert.True(result);
+            Assert.True(result.StatusCode == 0);
         }
 
         // TODO Add a test for Delete Vendor here
