@@ -40,7 +40,7 @@ namespace oneXerpQB
         IResponse CreatePurchaseOrder(PurchaseOrder purchaseOrderData);
         IResponse CreateVendor(Vendor vendorData);
 
-        IResponse ReceivePurchaseOrder(string purchaseOrderId);
+        IResponse ReceivePurchaseOrder(string purchaseOrderId, string vendorName);
 
         IResponse ReceivePurchaseOrderLineItems(string purchaseOrderId, List<PurchaseOrderLineItem> lineItems);
 
@@ -95,7 +95,7 @@ namespace oneXerpQB
                 IPurchaseOrderAdd purchaseOrderAdd = requestMsgSet.AppendPurchaseOrderAddRq();
                 purchaseOrderAdd.VendorRef.FullName.SetValue(poData.VendorName);
                 purchaseOrderAdd.TxnDate.SetValue(poData.OrderDate);
-                purchaseOrderAdd.RefNumber.SetValue(poData.oneXerpId);
+                purchaseOrderAdd.RefNumber.SetValue(poData.oneXerpId); // This fills the P.O. Number box
 
                 // Check and Add New Items if they do not exist
                 var newItemResponses = AddNewItems(sessionManager, poData.Items);
@@ -155,7 +155,7 @@ namespace oneXerpQB
          * In QuickBooks, in order to mark a PO "Fully Received", you create an item receipt and link it 
          * to the PO. All of the items in that PO will be automatically added to the receipt and fully received. 
          The PO then derives its status from the amount of each line item received.*/
-        public IResponse ReceivePurchaseOrder(string poId)
+        public IResponse ReceivePurchaseOrder(string poId, string vendorName)
         {
             bool result = false;
             QBSessionManager sessionManager = new QBSessionManager();
@@ -178,6 +178,7 @@ namespace oneXerpQB
 
                 // Link the ItemReceipt to the PurchaseOrder
                 itemReceiptAdd.LinkToTxnIDList.Add(poId);
+                itemReceiptAdd.VendorRef.FullName.SetValue(vendorName);
 
                 // Send the request to QuickBooks
                 IMsgSetResponse responseMsgSet = sessionManager.DoRequests(requestMsgSet);
@@ -187,17 +188,20 @@ namespace oneXerpQB
                 if (response.StatusCode < 0)
                 {
                     Logger.Log($"Error receiving PO: {response.StatusMessage}");
+                    Debugger.Log(0, "1", $"Error receiving PO: {response.StatusMessage}");
                     // Throw a QuickBooksErrorException if the status code indicates an error
                     throw new QuickBooksErrorException(response.StatusCode, "An error occurred while receiving PO in QuickBooks.");
                 }
                 else if (response.StatusCode > 0)
                 {
                     // Throw a QuickBooksWarningException if the status code indicates a warning
+                    Debugger.Log(0, "1", $"Warning receiving PO: {response.StatusMessage}");
                     throw new QuickBooksWarningException(response.StatusCode, "A warning occurred while receiving PO in QuickBooks.");
                 }
                 else if (response.Detail == null)
                 {
                     // Throw a QuickBooksWarningException if the status code indicates a warning
+                    Debugger.Log(0, "1", $"Null response was received from QuickBooks while trying to receive the PO: {response.StatusMessage}");
                     throw new QuickBooksErrorException(response.StatusCode, "A warning occurred while receiving PO in QuickBooks. Quickbooks did not throw an error, but the detail of the response was empty.");
                 }
             }

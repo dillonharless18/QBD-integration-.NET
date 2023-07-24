@@ -12,6 +12,6 @@ namespace oneXerpQB
         public string VendorName { get; set; }
         public DateTime OrderDate { get; set; }
         public List<PurchaseOrderLineItem> Items { get; set; }
-        public string PurchaseOrderId { get; set; } // Likely not in use as we use the oneXerpId to store the POId from oneXerp.
+        public string QuickbooksTxnId { get; set; } 
     }
 }

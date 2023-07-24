@@ -193,13 +193,14 @@ namespace oneXerpQB
                         IPurchaseOrderRet poRet = (IPurchaseOrderRet)response.Detail;
                         string poTxnId = poRet.TxnID.ToString();   // This is the id that quickbooks creates
 
-                        response = _quickBooksClient.ReceivePurchaseOrder(poTxnId);
+                        response = _quickBooksClient.ReceivePurchaseOrder(poTxnId, purchaseOrderData.VendorName);
                         // BIG TODO
-                        if (response.StatusCode != 0) break; // TODO if there is an error here, we created the PO but didn't receieve... handle it appropriately
+                        // TODO if there is an error here, we created the PO but didn't receieve... handle it appropriately
+                        if (response.StatusCode != 0) break; 
 
                         // Get the details from the response for Receipt
                         IItemReceiptRet itemReceiptRet = (IItemReceiptRet)response.Detail;
-                        string itemReceiptTxnId = itemReceiptRet.TxnID.ToString();   // This is the id that quickbooks creates
+                        string itemReceiptTxnId = itemReceiptRet.TxnID.GetValue();   // This is the id that quickbooks creates
 
                         // TODO - See if we need to map the ListIds of the PuchaseOrderLineItems to the purchase order line item Ids from oneXerp.
                         //          In quickbooks the line items don't get their own TxnId, but they do have an ItemRef that points to the ListIds of the corresponding item.
@@ -213,7 +214,8 @@ namespace oneXerpQB
                         break;
                     case "RECEIEVE_PO":
                         Logger.Log("Processing RECEIVE_PO_IN_FULL action...");
-                        response = _quickBooksClient.ReceivePurchaseOrder(oneXerpId);
+                        Receipt receiptData = (Receipt)parsedMessage.body;
+                        response = _quickBooksClient.ReceivePurchaseOrder(receiptData.QuickbooksPOTxnId, receiptData.VendorName); // Passing the 
                         // TODO egressMessage = null;
                         break;
                     //case "RECEIVE_PO_LINE_ITEMS":
