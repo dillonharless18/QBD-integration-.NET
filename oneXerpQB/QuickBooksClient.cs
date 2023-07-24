@@ -95,6 +95,7 @@ namespace oneXerpQB
                 IPurchaseOrderAdd purchaseOrderAdd = requestMsgSet.AppendPurchaseOrderAddRq();
                 purchaseOrderAdd.VendorRef.FullName.SetValue(poData.VendorName);
                 purchaseOrderAdd.TxnDate.SetValue(poData.OrderDate);
+                purchaseOrderAdd.RefNumber.SetValue(poData.oneXerpId);
 
                 // Check and Add New Items if they do not exist
                 var newItemResponses = AddNewItems(sessionManager, poData.Items);
