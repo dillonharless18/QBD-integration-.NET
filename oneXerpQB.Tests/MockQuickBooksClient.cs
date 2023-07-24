@@ -1,54 +1,72 @@
-﻿using System;
+﻿using Moq;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using oneXerpQB;
+using QBFC16Lib;
 
 namespace oneXerpQB.Tests
 {
-    public class MockQuickBooksClient : IQuickBooksClient
+
+    public class MockQuickBooksClient
     {
-        public List<PurchaseOrder> CreatedPurchaseOrders { get; } = new List<PurchaseOrder>();
-        public List<Vendor> CreatedVendors { get; } = new List<Vendor>();
-
-        // Add this property to control the behavior of CreatePurchaseOrder
-        public bool ShouldCreatePurchaseOrderSucceed { get; set; } = true;
-        public bool ShouldCreateVendorSucceed { get; set; } = true;
-
-        public bool CreatePurchaseOrder(PurchaseOrder purchaseOrderData)
+        public Mock<IQuickBooksClient> CreateMock()
         {
-            // Add the purchase order data to the list if the creation should succeed
-            if (ShouldCreatePurchaseOrderSucceed)
-            {
-                CreatedPurchaseOrders.Add(purchaseOrderData);
-            }
+            var mockClient = new Mock<IQuickBooksClient>();
 
-            // Return the value of ShouldCreatePurchaseOrderSucceed
-            return ShouldCreatePurchaseOrderSucceed;
+            // Setup AddNewItems to return a list of mocked responses
+            mockClient
+                .Setup(client => client.AddNewItems(It.IsAny<IQBSessionManager>(), It.IsAny<List<PurchaseOrderLineItem>>()))
+                .Returns((IQBSessionManager sessionManager, List<PurchaseOrderLineItem> items) =>
+                {
+                    var responses = new List<ResponseWrapper>();
+                    foreach (var item in items)
+                    {
+                        var mockResponse = new Mock<IResponse>();
+                        mockResponse.Setup(r => r.StatusCode).Returns(0);
+                        responses.Add(new ResponseWrapper(mockResponse.Object));
+                    }
+                    return responses;
+                });
+
+
+            // Setup DoesItemExist to return false
+            mockClient
+                .Setup(client => client.DoesItemExist(It.IsAny<IQBSessionManager>(), It.IsAny<string>()))
+                .Returns(false);
+
+            // Setup CreateVendor to return a mocked response with status code 0
+            mockClient
+                .Setup(client => client.CreateVendor(It.IsAny<Vendor>()))
+                .Returns((Vendor vendorData) =>
+                {
+                    var mockResponse = new Mock<IResponse>();
+                    mockResponse.Setup(r => r.StatusCode).Returns(0);
+                    return mockResponse.Object;
+                });
+
+            // Setup DeleteVendor to not throw any exceptions
+            mockClient
+                .Setup(client => client.DeleteVendor(It.IsAny<string>()))
+                .Callback(() => { });
+
+            // Setup GetVendorListIdByName to return a string representing the vendor ID
+            mockClient
+                .Setup(client => client.GetVendorListIdByName(It.IsAny<string>()))
+                .Returns((string vendorName) => $"MockedVendorID-{vendorName}");
+
+            mockClient
+                .Setup(client => client.CreatePurchaseOrder(It.IsAny<PurchaseOrder>()))
+                .Returns((IQBSessionManager sessionManager, PurchaseOrder purchaseOrder) =>
+                {
+                    var mockResponse = new Mock<IResponse>();
+                    mockResponse.Setup(r => r.StatusCode).Returns(0);
+                    return mockResponse.Object;
+                });
+
+
+
+
+
+            return mockClient;
         }
-
-        public bool ReceivePurchaseOrder(string purchaseOrderId)
-        {
-            return ShouldCreatePurchaseOrderSucceed;
-        }
-
-        public bool ReceivePurchaseOrderLineItems(string purchaseOrderId, List<PurchaseOrderLineItem> lineItems)
-        {
-            return ShouldCreatePurchaseOrderSucceed;
-        }
-
-        public bool CreateVendor(Vendor vendorData)
-        {
-            // Add the purchase order data to the list if the creation should succeed
-            if (ShouldCreateVendorSucceed)
-            {
-                CreatedVendors.Add(vendorData);
-            }
-
-            // Return the value of ShouldCreatePurchaseOrderSucceed
-            return ShouldCreateVendorSucceed;
-        }
-
     }
-
 }

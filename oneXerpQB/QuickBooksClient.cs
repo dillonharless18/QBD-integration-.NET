@@ -8,6 +8,30 @@ using System.Windows.Forms;
 
 namespace oneXerpQB
 {
+    public class ResponseWrapper
+    {
+        private IResponse _response;
+
+        public ResponseWrapper(IResponse response)
+        {
+            _response = response;
+        }
+
+        public int StatusCode
+        {
+            get { return _response.StatusCode; }
+            
+        }
+        public string StatusMessage
+        {
+            get { return _response.StatusMessage; }
+            
+        }
+
+        // Wrap additional needed properties/methods
+    }
+
+
     public interface IQuickBooksClient
     {
         IResponse CreatePurchaseOrder(PurchaseOrder purchaseOrderData);
@@ -16,6 +40,14 @@ namespace oneXerpQB
         IResponse ReceivePurchaseOrder(string purchaseOrderId);
 
         IResponse ReceivePurchaseOrderLineItems(string purchaseOrderId, List<PurchaseOrderLineItem> lineItems);
+
+        string GetVendorListIdByName(string vendorName);
+
+        void DeleteVendor(string vendorId);
+
+        bool DoesItemExist(IQBSessionManager sessionManager, string itemName);
+
+        List<ResponseWrapper> AddNewItems(IQBSessionManager sessionManager, List<PurchaseOrderLineItem> items);
 
     }
 
@@ -101,7 +133,6 @@ namespace oneXerpQB
                 {
                     Logger.Log("Purchase Order added successfully.");
                     Logger.Log(responseMsgSet.ResponseList.GetAt(0).ToString());
-                    result = true;
                 }
             }
             finally
@@ -336,9 +367,10 @@ namespace oneXerpQB
             return receivedQuantities;
         }
 
-        public List<IResponse> AddNewItems(IQBSessionManager sessionManager, List<PurchaseOrderLineItem> items)
+        public List<ResponseWrapper> AddNewItems(IQBSessionManager sessionManager, List<PurchaseOrderLineItem> items)
         {
-            List<IResponse> responses = new List<IResponse>();
+            // List<IResponse> responses = new List<IResponse>();
+            var responses = new List<ResponseWrapper>(); // Doing this because in the mock client in the tests package we get an error if we try to return a list of IResponses. It's related to COM.
 
             foreach (var item in items)
             {
@@ -373,7 +405,8 @@ namespace oneXerpQB
 
                 // Perform the request and capture the response
                 var response = sessionManager.DoRequests(requestMsgSet).ResponseList.GetAt(0);
-                responses.Add(response);
+                //responses.Add(response);
+                responses.Add(new ResponseWrapper(response));
             }
 
             return responses;

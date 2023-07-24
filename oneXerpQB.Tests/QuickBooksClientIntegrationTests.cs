@@ -3,6 +3,7 @@ using oneXerpQB;
 using System;
 using Microsoft.Extensions.Configuration;
 using System.IO;
+using QBFC16Lib;
 
 
 namespace oneXerpQB.Tests
@@ -41,10 +42,10 @@ namespace oneXerpQB.Tests
             var quickBooksClient = new QuickBooksClient(qbCompanyFilePath);
 
             // Act
-            PurchaseOrderAddRet result = quickBooksClient.CreatePurchaseOrder(purchaseOrderData);
+            IResponse result = quickBooksClient.CreatePurchaseOrder(purchaseOrderData);
 
             // Assert
-            Assert.True(result);
+            Assert.True(result.StatusCode == 0);
         }
 
 
