@@ -1,6 +1,7 @@
 ﻿using QBFC16Lib;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -371,42 +372,107 @@ namespace oneXerpQB
         {
             // List<IResponse> responses = new List<IResponse>();
             var responses = new List<ResponseWrapper>(); // Doing this because in the mock client in the tests package we get an error if we try to return a list of IResponses. It's related to COM.
+            string accountName = "Company Checking Account";
 
             foreach (var item in items)
             {
-                if (DoesItemExist(sessionManager, item.ItemName))
+                // Check if item exists
+                try
                 {
-                    Logger.Log("Item with name " + item.ItemName + " already exists. Skipping the creation of this item");
-                    continue;
+                    if (DoesItemExist(sessionManager, item.ItemName))
+                    {
+                        Logger.Log($"Item with name {item.ItemName} already exists. Skipping the creation of this item");
+                        Debugger.Log(0, "1", $"Item with name {item.ItemName} already exists. Skipping the creation of this item\n\n");
+                        continue;
+                    }
+
+                } catch (Exception ex)
+                {
+                    Logger.Log($"There was an exception while checking if item with name {item.ItemName} exists. Here is the exception: {ex}");
+                    Debugger.Log(0, "1", $"There was an exception while checking if item with name {item.ItemName} exists. Here is the exception: {ex}\n\n");
+                    throw ex;
                 }
 
-                Logger.Log("Item with name " + item.ItemName + " does not exist. Creating it now.");
+                // Adding and inventory item requires an account
+                try
+                {
+                    Logger.Log($"Retrieving ListId for account with name {accountName}"); // TODO we either need to get this dynamically or just apply all items to one account
+                    Debugger.Log(0, "1", $"Retrieving ListId for account with name {accountName}\n\n");
+                    string itemAccountListId = GetAccountIdByName(sessionManager, accountName);
+                    if ( itemAccountListId == null )
+                    {
+                        throw new Exception($"Failed to find an account with name {accountName}.");
+                    }
+                } catch (Exception ex)
+                {
+                    Logger.Log($"There was an exception while checking for an account with name {accountName}. Here is the exception: {ex}");
+                    Debugger.Log(0, "1", $"There was an exception while checking for an account with name {accountName}. Here is the exception: {ex}");
+                    throw ex;
+                }
 
-                IMsgSetRequest requestMsgSet = sessionManager.CreateMsgSetRequest("US", 16, 0);
-                IItemInventoryAdd itemInventoryAddRq = requestMsgSet.AppendItemInventoryAddRq();
+                // If item did not exist, create it
+                try
+                {
+                    Logger.Log($"Item with name {item.ItemName} does not exist. Creating it now.");
+                    Debugger.Log(0, "1", $"Item with name {item.ItemName} does not exist. Creating it now.\n\n");
+    
 
-                // Set the name of the item
-                itemInventoryAddRq.Name.SetValue(item.ItemName);
+                    IMsgSetRequest requestMsgSet = sessionManager.CreateMsgSetRequest("US", 16, 0);
+                    IItemInventoryAdd itemInventoryAddRq = requestMsgSet.AppendItemInventoryAddRq(); // This required an account to be set
+                    //IItemServiceAdd itemServiceAddRq = requestMsgSet.AppendItemServiceAddRq();
 
-                // Set the sales description and sales price of the item
-                itemInventoryAddRq.SalesDesc.SetValue(item.ItemName);
-                itemInventoryAddRq.SalesPrice.SetValue(item.Rate);
+                    // Set the name of the item
+                    itemInventoryAddRq.Name.SetValue(item.ItemName);
+                    //itemServiceAddRq.Name.SetValue(item.ItemName);
 
-                // Optionally, we could also set the asset account for the inventory item.
-                // We would need to get the ListID of the account, and use it to set the value
-                // For example:
-                // itemInventoryAddRq.AssetAccountRef.ListID.SetValue("8000003D-1556629351");
+                    // Set the sales description and sales price of the item
+                    itemInventoryAddRq.SalesDesc.SetValue(item.ItemName);
+                    itemInventoryAddRq.SalesPrice.SetValue(item.Rate);
+                    // Set the sales description and sales price of the item
+                    //itemServiceAddRq.ORSalesPurchase.SalesOrPurchase.Desc.SetValue(item.ItemName);
+                    //itemServiceAddRq.ORSalesPurchase.SalesOrPurchase.ORPrice.Price.SetValue(item.Rate);
 
-                // Set the purchase cost of the item
-                itemInventoryAddRq.PurchaseCost.SetValue(item.Rate);
+                    // Optionally, we could also set the asset account for the inventory item.
+                    // We would need to get the ListID of the account, and use it to set the value
+                    // For example:
+                    // itemInventoryAddRq.AssetAccountRef.ListID.SetValue("8000003D-1556629351");
 
-                // Make sure the item is active
-                itemInventoryAddRq.IsActive.SetValue(true);
+                    // Set the purchase cost of the item
+                    //itemInventoryAddRq.PurchaseCost.SetValue(item.Rate);
 
-                // Perform the request and capture the response
-                var response = sessionManager.DoRequests(requestMsgSet).ResponseList.GetAt(0);
-                //responses.Add(response);
-                responses.Add(new ResponseWrapper(response));
+                    // Make sure the item is active
+                    itemInventoryAddRq.IsActive.SetValue(true);
+                    //itemServiceAddRq.IsActive.SetValue(true);
+
+
+                    // Perform the request and capture the response
+                    var response = sessionManager.DoRequests(requestMsgSet).ResponseList.GetAt(0);
+
+                    if (response.StatusCode < 0)
+                    {
+                        Logger.Log($"Error creating item: {response.StatusMessage}");
+                        Debugger.Log(0, "1", $"Error creating item: {response.StatusMessage}\n\n");
+                        // Throw a QuickBooksErrorException if the status code indicates an error
+                        throw new QuickBooksErrorException(response.StatusCode, $"An error occurred while createing an item with name {item.ItemName} in quickbooks. Here is the message: {response.StatusMessage}\n\n");
+                    }
+                    else if (response.StatusCode > 0)
+                    {
+                        // Throw a QuickBooksWarningException if the status code indicates a warning
+                        throw new QuickBooksWarningException(response.StatusCode, $"A warning occurred while createing an item with name {item.ItemName} in quickbooks. Here is the message: {response.StatusMessage}\n\n");
+                    }
+                    else
+                    {
+                        Logger.Log("Item created successfully.");
+                        responses.Add(new ResponseWrapper(response));
+                    }
+
+                } catch (Exception ex)
+                {
+                    Logger.Log($"There was an exception while creating item with name {item.ItemName}. Here is the exception: {ex}");
+                    Debugger.Log(0,"1",$"There was an exception while creating item with name {item.ItemName}. Here is the exception: {ex}\n\n");
+                    throw ex;
+                }
+                
             }
 
             return responses;
@@ -435,6 +501,29 @@ namespace oneXerpQB
                 return true;
             }
         }
+
+        public string GetAccountIdByName(IQBSessionManager sessionManager, string accountName="Company Checking Account")
+        {
+            IMsgSetRequest requestMsgSet = sessionManager.CreateMsgSetRequest("US", 16, 0);
+            IAccountQuery accountQueryRq = requestMsgSet.AppendAccountQueryRq();
+            accountQueryRq.ORAccountListQuery.FullNameList.Add(accountName);
+
+            IMsgSetResponse responseSet = sessionManager.DoRequests(requestMsgSet);
+            IResponse response = responseSet.ResponseList.GetAt(0);
+            IAccountRetList accountRetList = (IAccountRetList)response.Detail;
+
+            if (accountRetList == null || accountRetList.Count == 0)
+            {
+                // No account found with the given name
+                return null;
+            }
+            else
+            {
+                // Return the ListID of the first account found
+                return accountRetList.GetAt(0).ListID.GetValue();
+            }
+        }
+
 
 
 

@@ -9,10 +9,9 @@ public static class Logger
         {
             using (StreamWriter w = File.AppendText("oneXerpLog.txt"))
             {
-                w.WriteLine("\r\nLog Entry : ");
-                w.WriteLine($"{DateTime.Now.ToLongTimeString()} {DateTime.Now.ToLongDateString()}");
-                w.WriteLine($"  :{logMessage}");
-                w.WriteLine("-------------------------------");
+                var logEntry = CreateLogEntry(logMessage);
+                w.WriteLine(logEntry);
+                Console.WriteLine(logEntry);  // Also write to the console
             }
         }
         catch (Exception ex)
@@ -21,5 +20,13 @@ public static class Logger
             // It may be best to simply output these to the console or debug output
             Console.Write("Failed to write to log: " + ex.Message);
         }
+    }
+
+    private static string CreateLogEntry(string logMessage)
+    {
+        return "\r\nLog Entry : " +
+               "\n" + DateTime.Now.ToLongTimeString() + " " + DateTime.Now.ToLongDateString() +
+               "\n  :" + logMessage +
+               "\n-------------------------------";
     }
 }
