@@ -1,5 +1,7 @@
-﻿using QBFC16Lib;
+﻿using Amazon.Runtime.SharedInterfaces;
+using QBFC16Lib;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -370,9 +372,19 @@ namespace oneXerpQB
 
         public List<ResponseWrapper> AddNewItems(IQBSessionManager sessionManager, List<PurchaseOrderLineItem> items)
         {
-            // List<IResponse> responses = new List<IResponse>();
             var responses = new List<ResponseWrapper>(); // Doing this because in the mock client in the tests package we get an error if we try to return a list of IResponses. It's related to COM.
-            string accountName = "Company Checking Account";
+
+            // Creating items requires accounts to be associated with them
+            Dictionary<string, string> accountNamesDict = new Dictionary<string, string>();
+            accountNamesDict["incomeAccountName"] = "Company Checking Account";
+            accountNamesDict["assetsAccountName"] = "Materials Inventory";
+            accountNamesDict["cogsAccountName"] = "Cost of Goods Sold";
+
+            // Gets set based on what is returned while looking up the account by the accountName
+            Dictionary<string, string> accountListIdsDict = new Dictionary<string, string>();
+            accountListIdsDict["incomeAccountListId"] = null;
+            accountListIdsDict["assetsAccountListId"] = null;
+            accountListIdsDict["cogsAccountListId"] = null;
 
             foreach (var item in items)
             {
@@ -393,22 +405,33 @@ namespace oneXerpQB
                     throw ex;
                 }
 
-                // Adding and inventory item requires an account
-                try
+
+                // Adding and inventory item requires 3 accounts - Income, Assets, and COGS
+                foreach (var entry in accountNamesDict)
                 {
-                    Logger.Log($"Retrieving ListId for account with name {accountName}"); // TODO we either need to get this dynamically or just apply all items to one account
-                    Debugger.Log(0, "1", $"Retrieving ListId for account with name {accountName}\n\n");
-                    string itemAccountListId = GetAccountIdByName(sessionManager, accountName);
-                    if ( itemAccountListId == null )
+                    Console.WriteLine("Key: {0}, Value: {1}", entry.Key, entry.Value);
+
+                    try
                     {
-                        throw new Exception($"Failed to find an account with name {accountName}.");
+
+
+                        Logger.Log($"Retrieving ListId for account with name {entry.Value}"); // TODO we either need to get this dynamically or just apply all items to one account
+                        Debugger.Log(0, "1", $"Retrieving ListId for account with name {entry.Value}\n\n");
+                        accountListIdsDict[entry.Key] = GetAccountIdByName(sessionManager, entry.Value);
+                        if (accountListIdsDict[entry.Key] == null)
+                        {
+                            throw new Exception($"Failed to find an account with name {entry.Value}.");
+                        }
+
                     }
-                } catch (Exception ex)
-                {
-                    Logger.Log($"There was an exception while checking for an account with name {accountName}. Here is the exception: {ex}");
-                    Debugger.Log(0, "1", $"There was an exception while checking for an account with name {accountName}. Here is the exception: {ex}");
-                    throw ex;
+                    catch (Exception ex)
+                    {
+                        Logger.Log($"There was an exception while checking for an account with name {entry.Value}. Here is the exception: {ex}");
+                        Debugger.Log(0, "1", $"There was an exception while checking for an account with name {entry.Value}. Here is the exception: {ex}");
+                        throw ex;
+                    }
                 }
+                
 
                 // If item did not exist, create it
                 try
@@ -419,7 +442,6 @@ namespace oneXerpQB
 
                     IMsgSetRequest requestMsgSet = sessionManager.CreateMsgSetRequest("US", 16, 0);
                     IItemInventoryAdd itemInventoryAddRq = requestMsgSet.AppendItemInventoryAddRq(); // This required an account to be set
-                    //IItemServiceAdd itemServiceAddRq = requestMsgSet.AppendItemServiceAddRq();
 
                     // Set the name of the item
                     itemInventoryAddRq.Name.SetValue(item.ItemName);
@@ -428,21 +450,15 @@ namespace oneXerpQB
                     // Set the sales description and sales price of the item
                     itemInventoryAddRq.SalesDesc.SetValue(item.ItemName);
                     itemInventoryAddRq.SalesPrice.SetValue(item.Rate);
-                    // Set the sales description and sales price of the item
-                    //itemServiceAddRq.ORSalesPurchase.SalesOrPurchase.Desc.SetValue(item.ItemName);
-                    //itemServiceAddRq.ORSalesPurchase.SalesOrPurchase.ORPrice.Price.SetValue(item.Rate);
 
-                    // Optionally, we could also set the asset account for the inventory item.
-                    // We would need to get the ListID of the account, and use it to set the value
-                    // For example:
-                    // itemInventoryAddRq.AssetAccountRef.ListID.SetValue("8000003D-1556629351");
+                    // Set the references to the accounts
+                    itemInventoryAddRq.IncomeAccountRef.ListID.SetValue(accountListIdsDict["incomeAccountListId"]);
+                    itemInventoryAddRq.AssetAccountRef.ListID.SetValue(accountListIdsDict["assetsAccountListId"]);
+                    itemInventoryAddRq.COGSAccountRef.ListID.SetValue(accountListIdsDict["cogsAccountListId"]);
 
-                    // Set the purchase cost of the item
-                    //itemInventoryAddRq.PurchaseCost.SetValue(item.Rate);
 
                     // Make sure the item is active
                     itemInventoryAddRq.IsActive.SetValue(true);
-                    //itemServiceAddRq.IsActive.SetValue(true);
 
 
                     // Perform the request and capture the response
