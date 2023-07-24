@@ -376,15 +376,15 @@ namespace oneXerpQB
 
             // Creating items requires accounts to be associated with them
             Dictionary<string, string> accountNamesDict = new Dictionary<string, string>();
-            accountNamesDict["incomeAccountName"] = "Company Checking Account";
-            accountNamesDict["assetsAccountName"] = "Materials Inventory";
-            accountNamesDict["cogsAccountName"] = "Cost of Goods Sold";
+            accountNamesDict["incomeAccount"] = "Company Checking Account";
+            accountNamesDict["assetsAccount"] = "Materials Inventory";
+            accountNamesDict["cogsAccount"] = "Cost of Goods Sold";
 
             // Gets set based on what is returned while looking up the account by the accountName
             Dictionary<string, string> accountListIdsDict = new Dictionary<string, string>();
-            accountListIdsDict["incomeAccountListId"] = null;
-            accountListIdsDict["assetsAccountListId"] = null;
-            accountListIdsDict["cogsAccountListId"] = null;
+            accountListIdsDict["incomeAccount"] = null;
+            accountListIdsDict["assetsAccount"] = null;
+            accountListIdsDict["cogsAccount"] = null;
 
             foreach (var item in items)
             {
@@ -420,8 +420,11 @@ namespace oneXerpQB
                         accountListIdsDict[entry.Key] = GetAccountIdByName(sessionManager, entry.Value);
                         if (accountListIdsDict[entry.Key] == null)
                         {
+                            Debugger.Log(0, "1", $"Failed to find an account with name {entry.Value}.");
                             throw new Exception($"Failed to find an account with name {entry.Value}.");
                         }
+
+                        Debugger.Log(0, "1", $"Account with name {entry.Value} found. ListId is {accountListIdsDict[entry.Key]}.");
 
                     }
                     catch (Exception ex)
@@ -452,9 +455,12 @@ namespace oneXerpQB
                     itemInventoryAddRq.SalesPrice.SetValue(item.Rate);
 
                     // Set the references to the accounts
-                    itemInventoryAddRq.IncomeAccountRef.ListID.SetValue(accountListIdsDict["incomeAccountListId"]);
-                    itemInventoryAddRq.AssetAccountRef.ListID.SetValue(accountListIdsDict["assetsAccountListId"]);
-                    itemInventoryAddRq.COGSAccountRef.ListID.SetValue(accountListIdsDict["cogsAccountListId"]);
+                    Debugger.Log(0, "1", $"accountListIdsDict[incomeAccountListId]: { accountListIdsDict["incomeAccount"] }\n\n");
+                    Debugger.Log(0, "1", $"accountListIdsDict[assetsAccountListId]: { accountListIdsDict["assetsAccount"] }\n\n");
+                    Debugger.Log(0, "1", $"accountListIdsDict[cogsAccountListId]: { accountListIdsDict["cogsAccount"] }\n\n");
+                    itemInventoryAddRq.IncomeAccountRef.ListID.SetValue(accountListIdsDict["incomeAccount"]);
+                    itemInventoryAddRq.AssetAccountRef.ListID.SetValue(accountListIdsDict["assetsAccount"]);
+                    itemInventoryAddRq.COGSAccountRef.ListID.SetValue(accountListIdsDict["cogsAccount"]);
 
 
                     // Make sure the item is active
