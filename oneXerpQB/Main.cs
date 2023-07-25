@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.Threading;
 using Amazon.SQS;
 using Amazon.SQS.Model;
@@ -10,7 +9,6 @@ using System.IO;
 using Microsoft.Extensions.Configuration;
 using System.Linq;
 using Amazon.Runtime.Internal.Util;
-using InvoiceAdd;
 using System.Windows.Forms;
 
 namespace oneXerpQB
@@ -167,9 +165,10 @@ namespace oneXerpQB
 
             try
             {
-                IngressMessage parsedMessage = ParseMessage(message.Body);
+                Logger.Log($"Message received from queue.");
+                dynamic parsedMessage = ParseMessage(message.Body);
                 string oneXerpId = parsedMessage.body.oneXerpId;
-                string actionType = parsedMessage.actionType.ToUpperInvariant();
+                string actionType = ((string)parsedMessage.actionType).ToUpperInvariant();
                 PurchaseOrder purchaseOrderData;
                 Vendor vendorData;
 
@@ -178,14 +177,13 @@ namespace oneXerpQB
 
                     case "CREATE_PO":
                         Logger.Log("Processing CREATE_PO action...");
-                        purchaseOrderData = (PurchaseOrder)parsedMessage.body;
+                        purchaseOrderData = JsonConvert.DeserializeObject<PurchaseOrder>(parsedMessage.body.ToString());
                         response = _quickBooksClient.CreatePurchaseOrder(purchaseOrderData);
-                        // TODO egressMessage = null;
                         break;
                     case "CREATE_PO_AND_RECEIVE_PO_IN_FULL":
                         Logger.Log("Processing CREATE_PO_AND_RECEIVE_PO_IN_FULL action...");
-                        purchaseOrderData = (PurchaseOrder)parsedMessage.body;
-                        
+                        purchaseOrderData = JsonConvert.DeserializeObject<PurchaseOrder>(parsedMessage.body.ToString());
+
                         // Create the PO in QuickBooks 
                         response = _quickBooksClient.CreatePurchaseOrder(purchaseOrderData);
                         if (response.StatusCode != 0) break;
@@ -196,7 +194,7 @@ namespace oneXerpQB
 
                         response = _quickBooksClient.ReceivePurchaseOrder(poTxnId, purchaseOrderData.VendorName);
                         // BIG TODO
-                        // TODO if there is an error here, we created the PO but didn't receieve... handle it appropriately
+                        // TODO if there is an error here, we created the PO but didn't receive... handle it appropriately
                         if (response.StatusCode != 0) break; 
 
                         // Get the details from the response for Receipt
@@ -215,29 +213,29 @@ namespace oneXerpQB
                          */
 
                         // Build the egress message with details of what occurred and mapping ids
+                        Logger.Log("PO Created and Received successfully. Build message to send to queue.");
                         egressMessage = new EgressMessageCreateAndReceivePOInFull(purchaseOrderData.oneXerpId, poTxnId, itemReceiptTxnId);
                         
                         break;
-                    case "RECEIEVE_PO":
+                    case "RECEIVE_PO":
                         Logger.Log("Processing RECEIVE_PO_IN_FULL action...");
-                        Receipt receiptData = (Receipt)parsedMessage.body;
-                        response = _quickBooksClient.ReceivePurchaseOrder(receiptData.QuickbooksPOTxnId, receiptData.VendorName); // Passing the 
+                        Receipt receiptData = JsonConvert.DeserializeObject<Receipt>(parsedMessage.body.ToString());
+                        response = _quickBooksClient.ReceivePurchaseOrder(receiptData.QuickbooksPOTxnId, receiptData.VendorName);
                         // TODO egressMessage = null;
                         break;
                     //case "RECEIVE_PO_LINE_ITEMS":
-                        // TODO determine the message format for this
-                        //Logger.Log("Processing RECEIVE_PO_LINE_ITEMS action... waiting to hear back about this");
-                        // TODO Determine what the function should except. It's built, but not optimal really.
-                        //purchaseOrderData = (PurchaseOrderData)parsedMessage;
-                        //lineItems = GetLineitemsFromPurchaseOrder(purchaseOrderData);
-                        //response = _quickBooksClient.ReceivePurchaseOrderLineItems(purchaseOrderData);
-                        //break;
+                    // TODO determine the message format for this
+                    //Logger.Log("Processing RECEIVE_PO_LINE_ITEMS action... waiting to hear back about this");
+                    // TODO Determine what the function should except. It's built, but not optimal really.
+                    //purchaseOrderData = (PurchaseOrderData)parsedMessage;
+                    //lineItems = GetLineitemsFromPurchaseOrder(purchaseOrderData);
+                    //response = _quickBooksClient.ReceivePurchaseOrderLineItems(purchaseOrderData);
+                    //break;
                     case "CREATE_VENDOR":
                         Logger.Log("Processing CREATE_VENDOR action...");
-                        vendorData = (Vendor)parsedMessage.body;
+                        vendorData = JsonConvert.DeserializeObject<Vendor>(parsedMessage.body.ToString());
                         Logger.Log($"vendorData: {vendorData}");
                         response = _quickBooksClient.CreateVendor(vendorData);
-                        // TODO egressMessage = null;
                         break;
                     default:
                         // Handle unrecognized actionType
@@ -260,7 +258,7 @@ namespace oneXerpQB
                     }
                     catch (Exception ex)
                     {
-                        Logger.Log((string)"An error occurred while deleting a message from oneXerp's egress queue that was already processed by quickbooks. Here is the message as it was originally received: ".Concat(parsedMessage.ToString()));
+                        Logger.Log($"An error occurred while deleting a message from oneXerp's egress queue that was already processed by quickbooks. Here is the message as it was originally received: {parsedMessage}");
                         throw ex;
                     }
 
@@ -371,7 +369,7 @@ namespace oneXerpQB
 
         private bool IsValidActionType(string actionType)
         {
-            string[] validActionTypes = { "CREATE_VENDOR", "CREATE_PO", "RECEIVE_PO" };
+            string[] validActionTypes = { "CREATE_VENDOR", "CREATE_PO", "RECEIVE_PO", "CREATE_PO_AND_RECEIVE_PO_IN_FULL" };
             return validActionTypes.Contains(actionType, StringComparer.OrdinalIgnoreCase);
         }
         
@@ -393,24 +391,29 @@ namespace oneXerpQB
          *         actionType: string ("CREATE_VENDOR" | "CREATE_PO" | "RECEIVE_PO")
          *     }
          */
-        internal IngressMessage ParseMessage(string messageBody)
+        internal dynamic ParseMessage(string messageBody)
         {
-           
-            var messageData = JsonConvert.DeserializeObject<IngressMessage>(messageBody);
+            dynamic parsedMessage = JsonConvert.DeserializeObject(messageBody);
 
-            if (!IsValidActionType(messageData.actionType))
+            // To pretty print
+            string prettyJsonStr = JsonConvert.SerializeObject(parsedMessage, Formatting.Indented);
+            Logger.Log($"Message parsed: {prettyJsonStr}");
+
+            string actionType = parsedMessage.actionType;
+            if (!IsValidActionType(actionType))
             {
-                throw new ArgumentException($"Invalid actionType value from queue. Action type found: {messageData.actionType}");
+                throw new ArgumentException($"Invalid actionType value from queue. Action type found: {actionType}");
             }
 
-            if (string.IsNullOrEmpty(messageData.body.oneXerpId))
+            string oneXerpId = parsedMessage.body.oneXerpId;
+            if (string.IsNullOrEmpty(oneXerpId))
             {
-                throw new ArgumentException($"Invalid itemId value from queue. Action type found: {messageData.actionType}");
+                throw new ArgumentException($"Invalid oneXerpId value from queue. Action type found: {actionType}");
             }
 
-            return messageData;
+            return parsedMessage;
         }
-        
+
     }
 }
 

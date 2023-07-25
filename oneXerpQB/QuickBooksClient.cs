@@ -222,7 +222,7 @@ namespace oneXerpQB
          * Partially recieve a purchase order by creating a receipt 
          * against a PO, updating the ReceivedQuantity on the line items.
          * 
-         * It first retrieves the existing ReceievedQuantity on the list items and adds the appropriate amount
+         * It first retrieves the existing ReceivedQuantity on the list items and adds the appropriate amount
          * from the payload.
          */ 
         public IResponse ReceivePurchaseOrderLineItems(string purchaseOrderId, List<PurchaseOrderLineItem> lineItems)
@@ -237,7 +237,7 @@ namespace oneXerpQB
                 sessionManager.BeginSession("", ENOpenMode.omDontCare);
 
                 // Get the existing received quantities for the line items
-                string[] lineItemIds = lineItems.Select(li => li.LineId).ToArray();
+                string[] lineItemIds = lineItems.Select(li => li.QuickbooksItemListId).ToArray();
                 Dictionary<string, double> existingReceivedQuantities = GetReceivedQuantitiesForLineItems(purchaseOrderId, lineItemIds);
 
                 // Create a new ItemReceiptAdd request
@@ -252,10 +252,11 @@ namespace oneXerpQB
                 {
                     IItemLineAdd itemLineAdd = itemReceiptAdd.ORItemLineAddList.Append().ItemLineAdd;
                     itemLineAdd.LinkToTxn.TxnID.SetValue(purchaseOrderId);
-                    itemLineAdd.LinkToTxn.TxnLineID.SetValue(lineItem.LineId);
+                    // TODO Determine if this actuall is a TxnLineId and if so update the class appropriately
+                    itemLineAdd.LinkToTxn.TxnLineID.SetValue(lineItem.QuickbooksItemListId);
 
                     // Determine the new received quantity based on existing and incoming quantities
-                    double existingReceivedQuantity = existingReceivedQuantities.ContainsKey(lineItem.LineId) ? existingReceivedQuantities[lineItem.LineId] : 0;
+                    double existingReceivedQuantity = existingReceivedQuantities.ContainsKey(lineItem.QuickbooksItemListId) ? existingReceivedQuantities[lineItem.QuickbooksItemListId] : 0;
                     double newReceivedQuantity = existingReceivedQuantity + lineItem.ReceivedQuantity;
                     itemLineAdd.Quantity.SetValue(newReceivedQuantity);
                 }
@@ -298,7 +299,7 @@ namespace oneXerpQB
 
         /**
          * Takes a PO Id and a list of line item Ids on that PO and returns a dictionary
-         * where the keys are the line item Ids and the values are the ReceievedQuantity of each item.
+         * where the keys are the line item Ids and the values are the ReceivedQuantity of each item.
          * Used when receiving items. Get the existing values and then add the received amount appropriately (or
          * maybe subtract/custom reporting in the future).
          */

@@ -12,6 +12,6 @@ namespace oneXerpQB
         public string VendorName { get; set; }
         public DateTime OrderDate { get; set; }
         public List<PurchaseOrderLineItem> Items { get; set; }
-        public string QuickbooksTxnId { get; set; } 
+        //public string QuickbooksTxnId { get; set; } 
     }
 }

@@ -18,7 +18,7 @@ namespace oneXerpQB
      *      When simply creating a PO we need to include a map of the line items' ids from oneXerp to their corresponding LineItemIds that quickbooks created as part of the PO creation process
      *      vs.
      *      When creating and receiving a PO in full, we need to also return the receipt's TxnId that was created by quickbooks so oneXerp can tie it a PO.
-     *          Question here: how do we want to handle this? Currently in oneXerp we just have a status that determines if something is receieved or not.
+     *          Question here: how do we want to handle this? Currently in oneXerp we just have a status that determines if something is received or not.
      *      vs. 
      *      When purely receiving line items on a PO, we may need to return line items on a receipt object with details of qty and such, depending on whether oneXerp stored that information prior.
      *                        
