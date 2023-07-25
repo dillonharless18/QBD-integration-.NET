@@ -11,6 +11,7 @@ using Microsoft.Extensions.Configuration;
 using System.Linq;
 using Amazon.Runtime.Internal.Util;
 using InvoiceAdd;
+using System.Windows.Forms;
 
 namespace oneXerpQB
 {
@@ -29,14 +30,12 @@ namespace oneXerpQB
             var sqsClient = new AmazonSQSClient(Amazon.RegionEndpoint.USEast1);
             // TODO Here we should look up the queue URL from cloudformation output
             var incomingMessageQueueUrl = "https://sqs.us-east-1.amazonaws.com/136559125535/development-InfrastructureStack-ExtensibleFinanceModuleQBDInfraEgre-YBZpLaST854p"; // TODO make this dynamic
-            var outgoingMessageQueueUrl = "https://sqs.us-east-1.amazonaws.com/136559125535/development-InfrastructureStack-ExtensibleFinanceModuleQBDInfraIngr-vv40Q77IXJ4O"; // TODO make this dynamic
 
             // Read QuickBooks company file path from configuration
             var qbCompanyFilePath = configuration["QuickBooks:CompanyFilePath"];
             var quickBooksClient = new QuickBooksClient(qbCompanyFilePath);
 
             var oneXerpClient = new OneXerpClient();
-            oneXerpClient._outgoingMessageQueueUrl = outgoingMessageQueueUrl;
 
 
             var poller = new BackgroundPoller(sqsClient, oneXerpClient, incomingMessageQueueUrl, quickBooksClient, 20000, 1);
@@ -160,10 +159,12 @@ namespace oneXerpQB
         }
 
 
-        internal async Task ProcessMessage(Message message)
+        internal async Task ProcessMessage(Amazon.SQS.Model.Message message)
         {
+            var outgoingMessageQueueUrl = "https://sqs.us-east-1.amazonaws.com/136559125535/development-InfrastructureStack-ExtensibleFinanceModuleQBDInfraIngr-vv40Q77IXJ4O"; // TODO make this dynamic
             IResponse response = null;          // The response received from QuickBooks
             EgressMessage egressMessage = null; // The message to send back to oneXerp
+
             try
             {
                 IngressMessage parsedMessage = ParseMessage(message.Body);
@@ -202,15 +203,20 @@ namespace oneXerpQB
                         IItemReceiptRet itemReceiptRet = (IItemReceiptRet)response.Detail;
                         string itemReceiptTxnId = itemReceiptRet.TxnID.GetValue();   // This is the id that quickbooks creates
 
-                        // TODO - See if we need to map the ListIds of the PuchaseOrderLineItems to the purchase order line item Ids from oneXerp.
-                        //          In quickbooks the line items don't get their own TxnId, but they do have an ItemRef that points to the ListIds of the corresponding item.
-                        //          Therefore the items have to exist in Quickbooks
-                        // Walk through the response and create a map of item from oneXerp Ids -> quickbooks Ids
-                        // Dictionary<string, string> itemIdsMap = new Dictionary<string, string>();
+                        /** 
+                         * TODO - See if we need to map the ListIds of the PuchaseOrderLineItems to the purchase order line item Ids from oneXerp.
+                         *        In quickbooks the line items don't get their own TxnId, but they do have an ItemRef that points to the ListIds of the corresponding item.
+                         *        Therefore the items have to exist in Quickbooks. If so we'll need to add those to the EgressMessage
+                         *        
+                         *        Might be a good idea at least to return info about items that were created in quickbooks.
+                         *        
+                         * Walk through the response and create a map of item from oneXerp Ids -> quickbooks Ids
+                         * Dictionary<string, string> itemIdsMap = new Dictionary<string, string>();
+                         */
 
                         // Build the egress message with details of what occurred and mapping ids
                         egressMessage = new EgressMessageCreateAndReceivePOInFull(purchaseOrderData.oneXerpId, poTxnId, itemReceiptTxnId);
-                        //egressMessage = new EgressMessageCreateAndReceivePOInFull(purchaseOrderData.oneXerpId, poTxnId, itemReceiptTxnId, itemIdsMap);
+                        
                         break;
                     case "RECEIEVE_PO":
                         Logger.Log("Processing RECEIVE_PO_IN_FULL action...");
@@ -260,12 +266,13 @@ namespace oneXerpQB
 
                     try
                     {
-                        // Send the egressMessage to oneXerp
-                        
+                        // Convert the message object to a string using JSON serialization
+                        string messageBody = JsonConvert.SerializeObject(egressMessage);
+                        await SendMessageAsync(outgoingMessageQueueUrl, messageBody);
                     }
                     catch (Exception ex)
                     {
-                        Logger.Log((string)"An error occurred while sending a message to oneXerp's ingress queue. Here is the message: ".Concat(egressMessage.ToString()));
+                        Logger.Log((string)"An error occurred while sending a message to oneXerp's ingress queue. This is the message that was attempted: ".Concat(egressMessage.ToString()));
                         throw ex;
                     }
 
@@ -336,6 +343,31 @@ namespace oneXerpQB
                 await Task.Delay(_pollingInterval);
             }
         }
+
+
+        // TODO should probably break out some of the logic in this file.
+        // The class Background Poller doesn't really make sense if it's
+        // also handling sending messages
+        public async Task SendMessageAsync(string queueUrl, string messageBody)
+        {
+            var sendMessageRequest = new SendMessageRequest
+            {
+                QueueUrl = queueUrl, // URL of existing SQS queue
+                MessageBody = messageBody
+            };
+
+            try
+            {
+                var sendMessageResponse = await _sqsClient.SendMessageAsync(sendMessageRequest);
+                Console.WriteLine("Message sent to the queue successfully.");
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine("Error in sending message to the queue: " + e.Message);
+            }
+        }
+               
+
 
         private bool IsValidActionType(string actionType)
         {
