@@ -4,14 +4,13 @@ using System;
 using Microsoft.Extensions.Configuration;
 using System.IO;
 using QBFC16Lib;
-
+using Xunit.Abstractions;
+using System.Linq;
 
 namespace oneXerpQB.Tests
 {
     public class QuickBooksClientIntegrationTests
     {
-
-        private readonly string _vendorName = "Test Vendor";
 
         [Fact]
         public void CreatePurchaseOrder_ValidData_CreatesPurchaseOrderInQuickBooks()
@@ -36,7 +35,8 @@ namespace oneXerpQB.Tests
                         Quantity = 5,
                         Rate = 10.0
                     }
-                }
+                },
+                oneXerpId = $"TstCreate"
             };
 
             var quickBooksClient = new QuickBooksClient(qbCompanyFilePath);
@@ -46,6 +46,50 @@ namespace oneXerpQB.Tests
 
             // Assert
             Assert.True(result.StatusCode == 0);
+        }
+
+        [Fact]
+        public void CreatePurchaseOrder_ReceivePurchaseOrder_ValidData_CreatesAndReceivesPurchaseOrderInQuickBooks()
+        {
+            // Arrange
+
+            var configuration = new Microsoft.Extensions.Configuration.ConfigurationBuilder()
+                .SetBasePath(Directory.GetCurrentDirectory())
+                .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+                .Build();
+            var qbCompanyFilePath = configuration["QuickBooks:CompanyFilePath"];
+
+            var purchaseOrderData = new PurchaseOrder
+            {
+                VendorName = "401K Administrator",
+                OrderDate = DateTime.Now,
+                Items = new System.Collections.Generic.List<PurchaseOrderLineItem>
+                {
+                    new PurchaseOrderLineItem
+                    {
+                        ItemName = "Nonexistent Item",
+                        Quantity = 5,
+                        Rate = 10.0
+                    }
+                },
+                oneXerpId = "TstCreRec"
+            };
+
+            var quickBooksClient = new QuickBooksClient(qbCompanyFilePath);
+
+            // Act
+            IResponse poResponse = quickBooksClient.CreatePurchaseOrder(purchaseOrderData);
+
+            // Assert
+            Assert.True(poResponse.StatusCode == 0);
+
+            // Get the details from the response for PO
+            IPurchaseOrderRet poRet = (IPurchaseOrderRet)poResponse.Detail;
+            string poTxnId = poRet.TxnID.GetValue();   // This is the id that quickbooks creates
+
+            IResponse receiptResponse = quickBooksClient.ReceivePurchaseOrder(poTxnId, purchaseOrderData.VendorName);
+
+            Assert.True(receiptResponse.StatusCode == 0);
         }
 
 
@@ -58,6 +102,8 @@ namespace oneXerpQB.Tests
                 .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
                 .Build();
             var qbCompanyFilePath = configuration["QuickBooks:CompanyFilePath"];
+
+            string vendorName = $"Test Vendor - {GenerateRandomString(8)}";
 
             var vendorAddress = new Address(
                     "123 Vendor St.",
@@ -76,8 +122,8 @@ namespace oneXerpQB.Tests
             };
 
             var vendorData = new Vendor(
-                _vendorName,
-                _vendorName,
+                vendorName,
+                vendorName,
                 vendorAddress,
                 "123-456-7890"
             );
@@ -106,11 +152,23 @@ namespace oneXerpQB.Tests
             var quickBooksClient = new QuickBooksClient(qbCompanyFilePath);
 
             // Act
-            var listId = quickBooksClient.GetVendorListIdByName(_vendorName);
+            var listId = quickBooksClient.GetVendorListIdByName("401K Administrator");
 
             // Assert
             Assert.NotNull(listId);
         }
-    }
+
+        
+
+
+        public string GenerateRandomString(int length)
+        {
+            const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+            var random = new Random();
+            return new string(Enumerable.Repeat(chars, length)
+                .Select(s => s[random.Next(s.Length)]).ToArray());
+        }
+
+}
 
 }
