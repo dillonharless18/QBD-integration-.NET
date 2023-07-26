@@ -190,7 +190,7 @@ namespace oneXerpQB
 
                         // Get the details from the response for PO
                         IPurchaseOrderRet poRet = (IPurchaseOrderRet)response.Detail;
-                        string poTxnId = poRet.TxnID.ToString();   // This is the id that quickbooks creates
+                        string poTxnId = poRet.TxnID.GetValue();   // This is the id that quickbooks creates
 
                         response = _quickBooksClient.ReceivePurchaseOrder(poTxnId, purchaseOrderData.VendorName);
                         // BIG TODO
@@ -213,9 +213,11 @@ namespace oneXerpQB
                          */
 
                         // Build the egress message with details of what occurred and mapping ids
-                        Logger.Log("PO Created and Received successfully. Build message to send to queue.");
+                        Logger.Log("PO created and received successfully. Building message to send to queue.");
                         egressMessage = new EgressMessageCreateAndReceivePOInFull(purchaseOrderData.oneXerpId, poTxnId, itemReceiptTxnId);
-                        
+
+                        Logger.Log("Message built.");
+
                         break;
                     case "RECEIVE_PO":
                         Logger.Log("Processing RECEIVE_PO_IN_FULL action...");
@@ -244,10 +246,11 @@ namespace oneXerpQB
                 }
 
                 
-                if (response != null && response.StatusCode != 0)
+                if (response != null && response.StatusCode == 0)
                 {
                     try
                     {
+                        Logger.Log("Deleting Message from incoming queue");
                         // Delete the message from the queue after it's processed
                         await _sqsClient.DeleteMessageAsync(new DeleteMessageRequest
                         {
@@ -277,6 +280,16 @@ namespace oneXerpQB
                 }
                 else
                 {
+                    if ( response == null )
+                    {
+                        Logger.Log("The response from quickbooks was null");
+                    } 
+                    else if (response.StatusCode != 0)
+                    {
+                        Logger.Log("The response.StatusCode from quickbooks was non-zero");
+                        Logger.Log($"Quickbooks response: {response.ToString()}");
+                    }
+                    
                     Logger.Log("Message failed to process. The message will not be deleted from the queue.");
                 }
             }

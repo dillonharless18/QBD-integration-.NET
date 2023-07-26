@@ -195,6 +195,7 @@ namespace oneXerpQB
                 else if (response.StatusCode > 0)
                 {
                     // Throw a QuickBooksWarningException if the status code indicates a warning
+                    Logger.Log($"Warning receiving PO: {response.StatusMessage}");
                     Debugger.Log(0, "1", $"Warning receiving PO: {response.StatusMessage}");
                     throw new QuickBooksWarningException(response.StatusCode, "A warning occurred while receiving PO in QuickBooks.");
                 }
