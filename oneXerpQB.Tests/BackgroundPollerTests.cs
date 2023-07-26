@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Amazon.SQS;
 using System.Collections.Generic;
 using System;
+using System.Text.Json;
 
 namespace oneXerpQB.Tests
 {
@@ -85,31 +86,51 @@ namespace oneXerpQB.Tests
             
         }
 
-        [Fact]
-        public async Task ProcessMessage_WhenCalledWithValidMessage_CallsCorrectClientMethods()
-        {
-            // Arrange
-            Message message = new Message()
-            {
-                Body = "{ \"itemId\": \"testItemId\", \"actionType\": \"CREATE_PO\" }"
-            };
+        // TODO: Determine if we need this. Commented out for now since I removed calls to the get data functions since we are sending the entire message to the queue.
+        //[Fact]
+        //public async Task ProcessMessage_WhenCalledWithValidMessage_CallsCorrectClientMethods()
+        //{
+        //    // Arrange
+        //    VendorData vendorData = new VendorData(
+        //    "SampleName",
+        //    "SampleCompanyName",
+        //    new Address(
+        //        "123 Main St",
+        //        "Apt 4B",
+        //        "",
+        //        "",
+        //        "",
+        //        "SampleCity",
+        //        "SampleState",
+        //        "12345",
+        //        "SampleCountry",
+        //        "SampleNote"),
+        //        "123-456-7890"
+        //    );
 
-            PurchaseOrderData expectedData = new PurchaseOrderData();
-            _mockOneXerpClient
-                .Setup(c => c.getPurchaseOrderData(It.IsAny<string>()))
-                .ReturnsAsync(expectedData);
-            _mockQuickBooksClient
-                .Setup(c => c.CreatePurchaseOrder(It.IsAny<PurchaseOrderData>()))
-                .Returns(true);
+        //    string json = JsonSerializer.Serialize(vendorData);
 
-            // Act
-            await _backgroundPoller.ProcessMessage(message);
+        //    Message message = new Message()
+        //    {
+        //        Body = json
+        //    };
 
-            // Assert
-            _mockOneXerpClient.Verify(c => c.getPurchaseOrderData("testItemId"), Times.Once());
-            _mockQuickBooksClient.Verify(c => c.CreatePurchaseOrder(expectedData), Times.Once());
-            _mockSqsClient.Verify(c => c.DeleteMessageAsync(It.IsAny<DeleteMessageRequest>(), It.IsAny<CancellationToken>()), Times.Once());
-        }
+        //    PurchaseOrderData expectedData = new PurchaseOrderData();
+        //    _mockOneXerpClient
+        //        .Setup(c => c.getPurchaseOrderData(It.IsAny<string>()))
+        //        .ReturnsAsync(expectedData);
+        //    _mockQuickBooksClient
+        //        .Setup(c => c.CreatePurchaseOrder(It.IsAny<PurchaseOrderData>()))
+        //        .Returns(true);
+
+        //    // Act
+        //    await _backgroundPoller.ProcessMessage(message);
+
+        //    // Assert
+        //    _mockOneXerpClient.Verify(c => c.getPurchaseOrderData("testItemId"), Times.Once());
+        //    _mockQuickBooksClient.Verify(c => c.CreatePurchaseOrder(expectedData), Times.Once());
+        //    _mockSqsClient.Verify(c => c.DeleteMessageAsync(It.IsAny<DeleteMessageRequest>(), It.IsAny<CancellationToken>()), Times.Once());
+        //}
 
         // Add more tests here for other branches of the ProcessMessage method, 
         // such as different action types and exceptional cases
