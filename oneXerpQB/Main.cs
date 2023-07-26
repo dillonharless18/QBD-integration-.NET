@@ -258,6 +258,8 @@ namespace oneXerpQB
                             ReceiptHandle = message.ReceiptHandle
                         });
 
+                        Logger.Log("Message deleted");
+
                     }
                     catch (Exception ex)
                     {
@@ -268,8 +270,11 @@ namespace oneXerpQB
                     try
                     {
                         // Convert the message object to a string using JSON serialization
+                        Logger.Log("Building message to send to outgoing queue");
                         string messageBody = JsonConvert.SerializeObject(egressMessage);
+                        Logger.Log("Message built");
                         await SendMessageAsync(outgoingMessageQueueUrl, messageBody);
+                        Logger.Log("Message sent");
                     }
                     catch (Exception ex)
                     {
@@ -287,7 +292,6 @@ namespace oneXerpQB
                     else if (response.StatusCode != 0)
                     {
                         Logger.Log("The response.StatusCode from quickbooks was non-zero");
-                        Logger.Log($"Quickbooks response: {response.ToString()}");
                     }
                     
                     Logger.Log("Message failed to process. The message will not be deleted from the queue.");
