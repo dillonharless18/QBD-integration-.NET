@@ -56,5 +56,5 @@ using System.Runtime.CompilerServices;
 [assembly: AssemblyDelaySign(false)]
 [assembly: AssemblyKeyFile("")]
 [assembly: AssemblyKeyName("")]
-[assembly: InternalsVisibleTo("oneXerpQB.Tests")]
+[assembly: InternalsVisibleTo("erpQB.Tests")]
 

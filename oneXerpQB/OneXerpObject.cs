@@ -4,18 +4,18 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace oneXerpQB
+namespace erpQB
 {
     /**
      * This class represents objects that exist as their own entities.
      * 
-     * IngressMessage extends this class to ensure there is a oneXerpId coming in,
+     * IngressMessage extends this class to ensure there is a erpId coming in,
      * although there are other nested types that we must add to EgressMessages, 
-     * and these also need a oneXerpId. One example is an EgressMessage containing
+     * and these also need a erpId. One example is an EgressMessage containing
      * items. These LineItems should therefore also extend this class.
      */
-    public class OneXerpObject
+    public class ErpObject
     {
-        public string oneXerpId { get; set; }
+        public string erpId { get; set; }
     }
 }

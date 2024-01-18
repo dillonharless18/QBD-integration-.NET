@@ -8,12 +8,12 @@ using System.Collections.Generic;
 using System;
 using System.Text.Json;
 
-namespace oneXerpQB.Tests
+namespace erpQB.Tests
 {
     public class BackgroundPollerTests
     {
         private readonly Mock<AmazonSQSClient> _mockSqsClient;
-        private readonly Mock<IOneXerpClient> _mockOneXerpClient;
+        private readonly Mock<IErpClient> _mockErpClient;
         private readonly Mock<IQuickBooksClient> _mockQuickBooksClient;
 
         private readonly BackgroundPoller _backgroundPoller;
@@ -30,7 +30,7 @@ namespace oneXerpQB.Tests
 
 
 
-            _mockOneXerpClient = new Mock<IOneXerpClient>();
+            _mockErpClient = new Mock<IErpClient>();
             _mockQuickBooksClient = new Mock<IQuickBooksClient>();
 
             string sqsUrl = "https://sqs.us-east-1.amazonaws.com/your-account-id/your-queue-name";
@@ -39,7 +39,7 @@ namespace oneXerpQB.Tests
 
             _backgroundPoller = new BackgroundPoller(
                 _mockSqsClient.Object,
-                _mockOneXerpClient.Object,
+                _mockErpClient.Object,
                 sqsUrl,
                 _mockQuickBooksClient.Object,
                 pollingInterval,
@@ -116,7 +116,7 @@ namespace oneXerpQB.Tests
         //    };
 
         //    PurchaseOrderData expectedData = new PurchaseOrderData();
-        //    _mockOneXerpClient
+        //    _mockErpClient
         //        .Setup(c => c.getPurchaseOrderData(It.IsAny<string>()))
         //        .ReturnsAsync(expectedData);
         //    _mockQuickBooksClient
@@ -127,7 +127,7 @@ namespace oneXerpQB.Tests
         //    await _backgroundPoller.ProcessMessage(message);
 
         //    // Assert
-        //    _mockOneXerpClient.Verify(c => c.getPurchaseOrderData("testItemId"), Times.Once());
+        //    _mockErpClient.Verify(c => c.getPurchaseOrderData("testItemId"), Times.Once());
         //    _mockQuickBooksClient.Verify(c => c.CreatePurchaseOrder(expectedData), Times.Once());
         //    _mockSqsClient.Verify(c => c.DeleteMessageAsync(It.IsAny<DeleteMessageRequest>(), It.IsAny<CancellationToken>()), Times.Once());
         //}

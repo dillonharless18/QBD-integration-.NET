@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace oneXerpQB
+namespace erpQB
 {
     public class Address
     {

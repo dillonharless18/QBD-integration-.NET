@@ -1,8 +1,8 @@
 ﻿using Xunit;
-using oneXerpQB;
+using erpQB;
 using System.Collections.Generic;
 
-namespace oneXerpQB.Tests
+namespace erpQB.Tests
 {
     public class QuickBooksClientTests
     {

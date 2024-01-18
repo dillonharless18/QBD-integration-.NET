@@ -7,7 +7,7 @@ public static class Logger
     {
         try
         {
-            using (StreamWriter w = File.AppendText("oneXerpLog.txt"))
+            using (StreamWriter w = File.AppendText("erpLog.txt"))
             {
                 var logEntry = CreateLogEntry(logMessage);
                 w.WriteLine(logEntry);

@@ -1,5 +1,5 @@
 ﻿using Xunit;
-using oneXerpQB;
+using erpQB;
 using System;
 using Microsoft.Extensions.Configuration;
 using System.IO;
@@ -7,7 +7,7 @@ using QBFC16Lib;
 using Xunit.Abstractions;
 using System.Linq;
 
-namespace oneXerpQB.Tests
+namespace erpQB.Tests
 {
     public class QuickBooksClientIntegrationTests
     {
@@ -36,7 +36,7 @@ namespace oneXerpQB.Tests
                         Rate = 10.0
                     }
                 },
-                oneXerpId = $"TstCreate"
+                erpId = $"TstCreate"
             };
 
             var quickBooksClient = new QuickBooksClient(qbCompanyFilePath);
@@ -72,7 +72,7 @@ namespace oneXerpQB.Tests
                         Rate = 10.0
                     }
                 },
-                oneXerpId = "TstCreRec"
+                erpId = "TstCreRec"
             };
 
             var quickBooksClient = new QuickBooksClient(qbCompanyFilePath);

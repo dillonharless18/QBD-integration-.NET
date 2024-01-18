@@ -4,9 +4,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace oneXerpQB
+namespace erpQB
 {
-    public class Receipt : OneXerpObject
+    public class Receipt : ErpObject
     {
         public string AccountName { get; set; }
         public DateTime ReceiptDate { get; set; }
@@ -15,7 +15,7 @@ namespace oneXerpQB
 
         public string QuickbooksPOTxnId { get; set; }
 
-        public string oneXerpPOId { get; set; }
+        public string erpPOId { get; set; }
 
         public Receipt( string accountName, DateTime receiptDate, List<ReceiptLineItem> items, string vendorName )
         {

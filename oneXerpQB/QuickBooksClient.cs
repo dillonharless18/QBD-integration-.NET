@@ -9,7 +9,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
-namespace oneXerpQB
+namespace erpQB
 {
     public class ResponseWrapper
     {
@@ -62,7 +62,7 @@ namespace oneXerpQB
         public QuickBooksClient(string qbCompanyFilePath)
         {
             _qbCompanyFilePath = qbCompanyFilePath;
-            _qbApplicationName = "oneXerpQB";
+            _qbApplicationName = "erpQB";
         }
 
 
@@ -95,7 +95,7 @@ namespace oneXerpQB
                 IPurchaseOrderAdd purchaseOrderAdd = requestMsgSet.AppendPurchaseOrderAddRq();
                 purchaseOrderAdd.VendorRef.FullName.SetValue(poData.VendorName);
                 purchaseOrderAdd.TxnDate.SetValue(poData.OrderDate);
-                purchaseOrderAdd.RefNumber.SetValue(poData.oneXerpId); // This fills the P.O. Number box
+                purchaseOrderAdd.RefNumber.SetValue(poData.erpId); // This fills the P.O. Number box
 
                 // Check and Add New Items if they do not exist
                 var newItemResponses = AddNewItems(sessionManager, poData.Items);
@@ -172,7 +172,7 @@ namespace oneXerpQB
                 IMsgSetRequest requestMsgSet = sessionManager.CreateMsgSetRequest("US", 16, 0);
                 IItemReceiptAdd itemReceiptAdd = requestMsgSet.AppendItemReceiptAddRq();
 
-                // TODO Figure out if we need to pull in the AccountName and ReceiptDate from oneXerp.
+                // TODO Figure out if we need to pull in the AccountName and ReceiptDate from erp.
                 //itemReceiptAdd.APAccountRef.FullName.SetValue(itemReceiptData.AccountName);
                 //itemReceiptAdd.TxnDate.SetValue(itemReceiptData.ReceiptDate);
 
@@ -580,7 +580,7 @@ namespace oneXerpQB
                 }
 
                 // Start the session
-                sessionManager.OpenConnection("", "oneXerpQB");
+                sessionManager.OpenConnection("", "erpQB");
                 sessionManager.BeginSession(_qbCompanyFilePath, ENOpenMode.omDontCare);
 
                 // Create the message set request

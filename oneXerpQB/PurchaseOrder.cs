@@ -1,13 +1,13 @@
-﻿using oneXerpQB;
+﻿using erpQB;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace oneXerpQB
+namespace erpQB
 {
-    public class PurchaseOrder : OneXerpObject
+    public class PurchaseOrder : ErpObject
     {
         public string VendorName { get; set; }
         public DateTime OrderDate { get; set; }

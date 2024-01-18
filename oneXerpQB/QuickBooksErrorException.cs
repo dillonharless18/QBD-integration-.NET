@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace oneXerpQB
+namespace erpQB
 {
     public class QuickBooksErrorException : Exception
     {

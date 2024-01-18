@@ -1,9 +1,9 @@
 ﻿using Moq;
 using System.Collections.Generic;
-using oneXerpQB;
+using erpQB;
 using QBFC16Lib;
 
-namespace oneXerpQB.Tests
+namespace erpQB.Tests
 {
 
     public class MockQuickBooksClient

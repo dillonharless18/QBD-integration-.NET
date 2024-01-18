@@ -1,9 +1,9 @@
 ﻿using System;
 using QBFC16Lib;
 
-namespace oneXerpQB
+namespace erpQB
 {
-    public class Vendor : OneXerpObject
+    public class Vendor : ErpObject
     {
         public string Name { get; set; }
         public string CompanyName { get; set; }

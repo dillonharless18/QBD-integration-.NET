@@ -11,7 +11,7 @@ using System.Linq;
 using Amazon.Runtime.Internal.Util;
 using System.Windows.Forms;
 
-namespace oneXerpQB
+namespace erpQB
 {
     class Program
     {
@@ -33,10 +33,10 @@ namespace oneXerpQB
             var qbCompanyFilePath = configuration["QuickBooks:CompanyFilePath"];
             var quickBooksClient = new QuickBooksClient(qbCompanyFilePath);
 
-            var oneXerpClient = new OneXerpClient();
+            var erpClient = new ErpClient();
 
 
-            var poller = new BackgroundPoller(sqsClient, oneXerpClient, incomingMessageQueueUrl, quickBooksClient, 20000, 1);
+            var poller = new BackgroundPoller(sqsClient, erpClient, incomingMessageQueueUrl, quickBooksClient, 20000, 1);
             try
             {
                 var cancellationToken = CancellationToken.None;
@@ -74,19 +74,19 @@ namespace oneXerpQB
     public class BackgroundPoller
     {
         private readonly AmazonSQSClient _sqsClient;
-        private readonly string _incomingMessageQueueUrl; // This is oneXerp's "egress queue" (egress from oneXerp's perspective - leaving from oneXerp)
+        private readonly string _incomingMessageQueueUrl; // This is erp's "egress queue" (egress from erp's perspective - leaving from erp)
         private bool _running;
         private readonly int _pollingInterval;
         private readonly IQuickBooksClient _quickBooksClient;
         private SemaphoreSlim _semaphore;
-        private readonly IOneXerpClient _oneXerpClient;
+        private readonly IErpClient _erpClient;
         private CancellationTokenSource _cts;
         private Task _pollingTask;
         public bool IsPollingActive => _pollingTask != null && !_pollingTask.IsCompleted;
         private readonly ILogger _logger;
 
 
-        public BackgroundPoller(AmazonSQSClient sqsClient, IOneXerpClient oneXerpClient, string incomingMessageQueueUrl, IQuickBooksClient quickBooksClient, int pollingInterval = 20000, int maxConcurrency = 1)
+        public BackgroundPoller(AmazonSQSClient sqsClient, IErpClient erpClient, string incomingMessageQueueUrl, IQuickBooksClient quickBooksClient, int pollingInterval = 20000, int maxConcurrency = 1)
         {
             _sqsClient = sqsClient;
             _incomingMessageQueueUrl = incomingMessageQueueUrl;
@@ -94,7 +94,7 @@ namespace oneXerpQB
             _running = true;
             _pollingInterval = pollingInterval;
             _semaphore = new SemaphoreSlim(maxConcurrency, maxConcurrency);
-            _oneXerpClient = oneXerpClient;
+            _erpClient = erpClient;
             _cts = new CancellationTokenSource();
             //_logger = logger;
         }
@@ -161,13 +161,13 @@ namespace oneXerpQB
         {
             var outgoingMessageQueueUrl = "https://sqs.us-east-1.amazonaws.com/136559125535/development-InfrastructureStack-ExtensibleFinanceModuleQBDInfraIngr-vv40Q77IXJ4O"; // TODO make this dynamic
             IResponse response = null;          // The response received from QuickBooks
-            EgressMessage egressMessage = null; // The message to send back to oneXerp
+            EgressMessage egressMessage = null; // The message to send back to erp
 
             try
             {
                 Logger.Log($"Message received from queue.");
                 dynamic parsedMessage = ParseMessage(message.Body);
-                string oneXerpId = parsedMessage.body.oneXerpId;
+                string erpId = parsedMessage.body.erpId;
                 string actionType = ((string)parsedMessage.actionType).ToUpperInvariant();
                 PurchaseOrder purchaseOrderData;
                 Vendor vendorData;
@@ -202,19 +202,19 @@ namespace oneXerpQB
                         string itemReceiptTxnId = itemReceiptRet.TxnID.GetValue();   // This is the id that quickbooks creates
 
                         /** 
-                         * TODO - See if we need to map the ListIds of the PuchaseOrderLineItems to the purchase order line item Ids from oneXerp.
+                         * TODO - See if we need to map the ListIds of the PuchaseOrderLineItems to the purchase order line item Ids from erp.
                          *        In quickbooks the line items don't get their own TxnId, but they do have an ItemRef that points to the ListIds of the corresponding item.
                          *        Therefore the items have to exist in Quickbooks. If so we'll need to add those to the EgressMessage
                          *        
                          *        Might be a good idea at least to return info about items that were created in quickbooks.
                          *        
-                         * Walk through the response and create a map of item from oneXerp Ids -> quickbooks Ids
+                         * Walk through the response and create a map of item from erp Ids -> quickbooks Ids
                          * Dictionary<string, string> itemIdsMap = new Dictionary<string, string>();
                          */
 
                         // Build the egress message with details of what occurred and mapping ids
                         Logger.Log("PO created and received successfully. Building message to send to queue.");
-                        egressMessage = new EgressMessageCreateAndReceivePOInFull(purchaseOrderData.oneXerpId, poTxnId, itemReceiptTxnId);
+                        egressMessage = new EgressMessageCreateAndReceivePOInFull(purchaseOrderData.erpId, poTxnId, itemReceiptTxnId);
 
                         Logger.Log("Message built.");
 
@@ -263,7 +263,7 @@ namespace oneXerpQB
                     }
                     catch (Exception ex)
                     {
-                        Logger.Log($"An error occurred while deleting a message from oneXerp's egress queue that was already processed by quickbooks. Here is the message as it was originally received: {parsedMessage}");
+                        Logger.Log($"An error occurred while deleting a message from erp's egress queue that was already processed by quickbooks. Here is the message as it was originally received: {parsedMessage}");
                         throw ex;
                     }
 
@@ -278,7 +278,7 @@ namespace oneXerpQB
                     }
                     catch (Exception ex)
                     {
-                        Logger.Log((string)"An error occurred while sending a message to oneXerp's ingress queue. This is the message that was attempted: ".Concat(egressMessage.ToString()));
+                        Logger.Log((string)"An error occurred while sending a message to erp's ingress queue. This is the message that was attempted: ".Concat(egressMessage.ToString()));
                         throw ex;
                     }
 
@@ -391,7 +391,7 @@ namespace oneXerpQB
         }
         
         /** 
-         * Returns a map of ids from items in oneXerp to their corresponding
+         * Returns a map of ids from items in erp to their corresponding
          */
 
         private bool createItemIdsMap(string actionType)
@@ -404,7 +404,7 @@ namespace oneXerpQB
         /*
          * Args:
          *     messageBody: JSON string {
-         *         oneXerpId: string (PO/Vendor id in oneXerp database)
+         *         erpId: string (PO/Vendor id in erp database)
          *         actionType: string ("CREATE_VENDOR" | "CREATE_PO" | "RECEIVE_PO")
          *     }
          */
@@ -422,10 +422,10 @@ namespace oneXerpQB
                 throw new ArgumentException($"Invalid actionType value from queue. Action type found: {actionType}");
             }
 
-            string oneXerpId = parsedMessage.body.oneXerpId;
-            if (string.IsNullOrEmpty(oneXerpId))
+            string erpId = parsedMessage.body.erpId;
+            if (string.IsNullOrEmpty(erpId))
             {
-                throw new ArgumentException($"Invalid oneXerpId value from queue. Action type found: {actionType}");
+                throw new ArgumentException($"Invalid erpId value from queue. Action type found: {actionType}");
             }
 
             return parsedMessage;

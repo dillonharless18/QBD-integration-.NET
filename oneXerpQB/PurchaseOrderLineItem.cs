@@ -4,9 +4,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace oneXerpQB
+namespace erpQB
 {
-    public class PurchaseOrderLineItem : OneXerpObject
+    public class PurchaseOrderLineItem : ErpObject
     {
         public string ItemName { get; set; }
         public double Quantity { get; set; }

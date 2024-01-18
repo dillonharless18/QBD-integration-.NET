@@ -1,23 +1,23 @@
-﻿using oneXerpQB;
+﻿using erpQB;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace oneXerpQB
+namespace erpQB
 {
 
-    public interface IOneXerpClient
+    public interface IErpClient
     {
         Task<PurchaseOrder> getPurchaseOrderData(string itemId);
         Task<Vendor> getVendorData(string itemId);
 
     }
 
-    public class OneXerpClient : IOneXerpClient
+    public class ErpClient : IErpClient
     {
-        public string _outgoingMessageQueueUrl { get; set; } // This is oneXerp's "ingress queue" (ingress from oneXerp's perspective - going to oneXerp)
+        public string _outgoingMessageQueueUrl { get; set; } // This is erp's "ingress queue" (ingress from erp's perspective - going to erp)
         
         public async Task<PurchaseOrder> getPurchaseOrderData(string itemId)
         {
